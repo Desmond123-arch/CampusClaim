@@ -10,8 +10,10 @@ import (
 type User struct {
 	gorm.Model
 	// ID           uint      `gorm:"primaryKey;column:id;autoIncrement"`
-	Password     string    `json:"password" gorm:"column:password;not null" validate:"required"`
+	Password     string    `json:"password" gorm:"column:password;not null" validate:"required,validate_password"`
+	ConfirmPassword string `json:"confirm_password" gorm:"-" validate:"required"` 
 	FullName     string    `json:"full_name" gorm:"column:full_name;not null" validate:"required"`
+	Email string `json:"email" gorm:"column:email;not null" validate:"required,email,school_email"`
 	PhoneNumber  string    `json:"phone_number" gorm:"column:phone_number;not null" validate:"required"`
 	ImageURL string    `json:"profile_image" gorm:"column:profile_image"`
 	RefreshToken string    `gorm:"column:refresh_token"`
