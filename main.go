@@ -7,7 +7,8 @@ import (
 
 	// "time"
 
-	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
+	"github.com/Desmond123-arch/CampusClaim/internal/auth"
+	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
@@ -63,12 +64,14 @@ func main() {
 		},
 	})
 
+	// app := fiber.New()
+	// app.Use(middleware.AuthenticateMiddleware)
 	app.Use(logger.New())
-	app.Use(middleware.AuthenticateMiddleware)
-	app.Get("/", func(c *fiber.Ctx) error {
-		return c.SendString("Hello, World!")
-	})
 
+	authRoutes := app.Group("/auth")
+
+	// AUTH ROUTES
+	authRoutes.Post("/register", auth.RegisterUser)
 
 	app.Listen(":3000")
 }
