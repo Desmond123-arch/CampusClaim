@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var secretKey = []byte("secret-token")
@@ -37,6 +39,8 @@ func CreateRefreshToken(userid string) (string, error) {
 		return "", err
 	}
 	//TODO: Store refreshToken in database
+	uid,_ := uuid.Parse(userid)
+	models.DB.Model(&models.User{UUID: uid}).Where("1=1").Update("refresh_token",tokenString)
 	return tokenString, nil
 }
 
