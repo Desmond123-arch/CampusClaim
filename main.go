@@ -14,11 +14,10 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/lpernett/godotenv"
-	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-
+var DB *gorm.DB
 
 func main() {
 	err := godotenv.Load()
@@ -28,29 +27,14 @@ func main() {
 	}
 
 	//POSTGRES SETUP
-	postgres_url := os.Getenv("POSTGRES_URL")
 	mongodb_url  := os.Getenv("MONGODB_URL")
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		DSN:postgres_url,
-		PreferSimpleProtocol: true,
-	}), &gorm.Config{})
-	if err != nil {
-        panic("failed to connect database")
-    }
-	models.Setup(db)
 
+	models.Init()
 	//MONGODB SETUP
 	mongoDB, err := models.MongoSetup(mongodb_url)
 	if err != nil {
 		log.Fatalf("Error connecting to MongoDB: %v", err)
 	}
-	// message := models.Messages{
-	// 	Sender:   1,
-	// 	Receiver: 2,
-	// 	Content:  "Hello",
-	// 	SentAt:   time.Now(),
-	// }
-	// _, err = mongoDB.MessagesCollection.InsertOne(context.Background(), message)
 
 	defer mongoDB.Close()
 
