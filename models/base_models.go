@@ -41,6 +41,12 @@ func (u *User) MarshalJSON() ([]byte, error) {
         IsVerified:  u.IsVerified,
     })
 }
+
+type LoginDetails struct {
+	Email             string    `json:"email"validate:"required,email,school_email"`	
+	Password          string    `json:"password,omitempty"validate:"required"`
+}
+
 type EmailVerification struct {
 	gorm.Model
 	Code      string    `json:"verification_code" gorm:"column:verification_code;not null"`
