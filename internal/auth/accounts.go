@@ -2,6 +2,7 @@ package auth
 
 import (
 	"errors"
+
 	"fmt"
 	"time"
 
@@ -17,14 +18,12 @@ func RegisterUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request"})
 	}
 
-	errs := pkg.SchoolEmailValidator().Validate(user)
+	errs := pkg.RegistrationValidatator().Validate(user)
 
 	if len(errs) != 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
 	}
-
-	fmt.Println(&models.DB)
-
+	user.Password, _ = pkg.HashPassword(user.Password)
 	result := models.DB.Create(&user)
 
 	if result.Error != nil {
@@ -54,4 +53,21 @@ func RegisterUser(c *fiber.Ctx) error {
 		"user":        user,
 		"accessToken": accessToken,
 	})
+}
+
+
+func LoginUser(c *fiber.Ctx) error {
+	user := new(models.LoginDetails)
+	if err := c.BodyParser(&user); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request"})
+	}
+	errs := pkg.LoginValidator().Validate(user)
+
+	if len(errs) != 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
+	}
+	var dbUser models.User
+	models.DB.Where("email = ?", user.Email).First(&dbUser)
+	fmt.Println(dbUser)
+	return nil
 }

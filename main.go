@@ -56,6 +56,6 @@ func main() {
 
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
-
+	authRoutes.Post("/login", auth.LoginUser)
 	app.Listen(":3000")
 }

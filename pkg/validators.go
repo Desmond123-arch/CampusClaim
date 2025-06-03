@@ -82,9 +82,16 @@ func validatePassword(f1 validator.FieldLevel) bool {
 	return confirmPassword == password
 }
 
-func SchoolEmailValidator() *XValidator {
+func RegistrationValidatator() *XValidator {
 	v := validator.New()
 	_ = v.RegisterValidation("school_email", isSchoolEmail)
 	_ = v.RegisterValidation("validate_password", validatePassword)
 	return &XValidator{validator: v}
+}
+
+func LoginValidator() *XValidator {
+	v := validator.New()
+	_ = v.RegisterValidation("school_email", isSchoolEmail)
+	return &XValidator{validator: v}
+
 }
