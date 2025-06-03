@@ -31,7 +31,7 @@ func CreateRefreshToken(userid string) (string, error) {
 		jwt.MapClaims{
 			"sub": userid,
 			"iss": "CampusClaim",
-			"exp": time.Now().Add(time.Hour).Unix(),
+			"exp": time.Now().Add(24 * time.Hour * 72).Unix(),
 			"iat": time.Now().Unix(),
 		})
 	tokenString, err := claims.SignedString(secretKey)
