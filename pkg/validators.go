@@ -13,14 +13,14 @@ type (
 	ErrorResponse struct {
 		// Error string
 		FailedField string
-		Tag string
-		Value interface{}
-		Message string
+		Tag         string
+		Value       interface{}
+		Message     string
 	}
 	XValidator struct {
 		validator *validator.Validate
 	}
-	
+
 	GlobalErrorHandlerResp struct {
 		Success bool   `json:"success"`
 		Message string `json:"message"`
@@ -32,7 +32,6 @@ type (
 func (v XValidator) Validate(data interface{}) []ErrorResponse {
 	validationErrors := []ErrorResponse{}
 	errs := v.validator.Struct(data)
-
 
 	if errs != nil {
 		for _, err := range errs.(validator.ValidationErrors) {
@@ -94,4 +93,9 @@ func LoginValidator() *XValidator {
 	_ = v.RegisterValidation("school_email", isSchoolEmail)
 	return &XValidator{validator: v}
 
+}
+
+func GeneralValidator() *XValidator {
+	v := validator.New()
+	return &XValidator{validator: v}
 }

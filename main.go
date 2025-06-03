@@ -58,5 +58,6 @@ func main() {
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
 	authRoutes.Post("/verify-account", auth.VerifyAccount)
+	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 	app.Listen(":3000")
 }
