@@ -57,5 +57,6 @@ func main() {
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
+	authRoutes.Post("/verify-account", auth.VerifyAccount)
 	app.Listen(":3000")
 }

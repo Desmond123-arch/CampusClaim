@@ -2,7 +2,6 @@ package auth
 
 import (
 	"errors"
-
 	"fmt"
 	"time"
 
@@ -48,6 +47,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
 	c.Cookie((*fiber.Cookie)(cookie))
 
+	
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":      "success",
 		"user":        user,
@@ -55,11 +55,10 @@ func RegisterUser(c *fiber.Ctx) error {
 	})
 }
 
-
 func LoginUser(c *fiber.Ctx) error {
 	user := new(models.LoginDetails)
 	if err := c.BodyParser(&user); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid data"})
 	}
 	errs := pkg.LoginValidator().Validate(user)
 
@@ -68,6 +67,40 @@ func LoginUser(c *fiber.Ctx) error {
 	}
 	var dbUser models.User
 	models.DB.Where("email = ?", user.Email).First(&dbUser)
-	fmt.Println(dbUser)
-	return nil
+	isValid := pkg.VerifyHash(user.Password, dbUser.Password)
+	if !isValid {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
+
+	accessToken, err := CreateAccessToken(dbUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	refreshToken, err := CreateRefreshToken(dbUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+
+	if !dbUser.IsVerified {
+		fmt.Println("Redirecting")
+		return c.Redirect("/auth/verify-account", fiber.StatusTemporaryRedirect)
+	}
+
+	cookie := new(fiber.Cookie)
+	cookie.Name = "RefreshToken"
+	cookie.Value = refreshToken
+	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
+	c.Cookie((*fiber.Cookie)(cookie))
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":      "success",
+		"user":    &dbUser,
+		"accessToken": accessToken,
+	})
+}
+
+
+func VerifyAccount(c *fiber.Ctx) error{
+
+	return c.SendStatus(fiber.StatusAccepted)
 }

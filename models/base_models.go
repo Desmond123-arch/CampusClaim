@@ -43,8 +43,8 @@ func (u *User) MarshalJSON() ([]byte, error) {
 }
 
 type LoginDetails struct {
-	Email             string    `json:"email"validate:"required,email,school_email"`	
-	Password          string    `json:"password,omitempty"validate:"required"`
+	Email             string    `json:"email" validate:"required,email,school_email"`	
+	Password          string    `json:"password" validate:"required"`
 }
 
 type EmailVerification struct {
