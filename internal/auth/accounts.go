@@ -3,6 +3,9 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"strings"
+
+	// "fmt"
 	"time"
 
 	"github.com/Desmond123-arch/CampusClaim/models"
@@ -40,6 +43,19 @@ func RegisterUser(c *fiber.Ctx) error {
 	refreshToken, err := CreateRefreshToken(user.UUID.String())
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	verifier := new(models.EmailVerification)
+	verifier.Code, _ = pkg.GenerateOTP()
+	verifier.ExpiresAt = time.Now().Add(60 * time.Second)
+	verifier.UserID = user.ID
+
+	result = models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": "User already exists"})
+		} else {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
+		}
 	}
 
 	cookie := new(fiber.Cookie)
@@ -110,7 +126,6 @@ func GetNewRefreshToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid request body"})
 	}
 	token, err := VerifyToken(refreshToken)
-	fmt.Println(err)
 	if err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
 	}
@@ -144,6 +159,76 @@ func GetNewRefreshToken(c *fiber.Ctx) error {
 }
 
 func VerifyAccount(c *fiber.Ctx) error {
+	type OTPRequest struct {
+		Code string `json:"code" validate:"required,len=6"`
+	}
+	otprequest := new(OTPRequest)
+	if err := c.BodyParser(&otprequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Invalid request body"})
+	}
 
+	errs := pkg.GeneralValidator().Validate(otprequest)
+	if len(errs) != 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
+	}
+	token := c.GetReqHeaders()["Authorization"][0]
+	token = strings.ReplaceAll(token, "Bearer ", "")
+	verfiedtoken, err := VerifyToken(token)
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+
+	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
+	var user models.User
+	models.DB.Where("uuid = ? ", userid).First(&user)
+	if user.IsVerified {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "User already verified"})
+	}
+	verifier := new(models.EmailVerification)
+	err = models.DB.Where("user_id = ?", user.ID).First(&verifier).Error
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "User not found"})
+
+	}
+	if time.Now().After(verifier.ExpiresAt) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status": "Failed", 
+			"errors": "Token has expired",
+		})
+	}
+	
+	if verifier.Code != otprequest.Code {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+
+	models.DB.Model(&user).Update("is_verified", true)
+	// models.DB.Delete(&verifier)
+	return c.SendStatus(fiber.StatusAccepted)
+}
+
+func ResetPassword(c *fiber.Ctx) error {
+	type PasswordRequest struct {
+		Password string `json:"password,omitempty" gorm:"column:password;not null" validate:"required"`
+	}
+
+	password := new(PasswordRequest)
+	if err := c.BodyParser(&password); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Invalid request body"})
+	}
+	errs := pkg.GeneralValidator().Validate(password)
+
+	if len(errs) != 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
+	}
+	token := c.GetReqHeaders()["Authorization"][0]
+	token = strings.ReplaceAll(token, "Bearer ", "")
+	verfiedtoken, err := VerifyToken(token)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
+	models.DB.Where("uuid = ? ", userid).Update("password", password.Password)
+	
 	return c.SendStatus(fiber.StatusAccepted)
 }

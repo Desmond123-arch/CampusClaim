@@ -53,6 +53,7 @@ type EmailVerification struct {
 	ExpiresAt time.Time `json:"expires_at" gorm:"column:expires_at"`
 	UserID    uint
 }
+
 type Item_Status struct {
 	gorm.Model
 	Name string `gorm:"unique;column:status"`
