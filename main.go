@@ -8,6 +8,7 @@ import (
 	// "time"
 
 	"github.com/Desmond123-arch/CampusClaim/internal/auth"
+	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
 	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
@@ -27,7 +28,7 @@ func main() {
 	}
 
 	//POSTGRES SETUP
-	mongodb_url  := os.Getenv("MONGODB_URL")
+	mongodb_url := os.Getenv("MONGODB_URL")
 
 	models.Init()
 	//MONGODB SETUP
@@ -38,9 +39,8 @@ func main() {
 
 	defer mongoDB.Close()
 
-
 	app := fiber.New(fiber.Config{
-		ErrorHandler: func (c *fiber.Ctx, err error) error {
+		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusBadRequest).JSON(pkg.GlobalErrorHandlerResp{
 				Success: false,
 				Message: err.Error(),
@@ -57,7 +57,7 @@ func main() {
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
-	authRoutes.Post("/verify-account", auth.VerifyAccount)
+	authRoutes.Post("/verify-account", middleware.VerifyRateLimiter, auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 	app.Listen(":3000")
 }

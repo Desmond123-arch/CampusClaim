@@ -9,7 +9,7 @@ import (
 )
 
 var DB *gorm.DB
-var redisClient *redis.Client
+var RedisClient *redis.Client
 func Init() {
 	postgres_url := os.Getenv("POSTGRES_URL")
 	var err error
@@ -23,7 +23,7 @@ func Init() {
     }
 	Setup(DB)
 
-	redisClient = redis.NewClient(&redis.Options{
+	RedisClient = redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
 		Password: "",
 		DB: 0,
