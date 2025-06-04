@@ -20,3 +20,5 @@ func AuthenticateMiddleware(c *fiber.Ctx) error {
 	c.Next()
 	return nil
 }
+
+
