@@ -2,10 +2,7 @@ package auth
 
 import (
 	"errors"
-	"fmt"
 	"strings"
-
-	// "fmt"
 	"time"
 
 	"github.com/Desmond123-arch/CampusClaim/models"
@@ -46,7 +43,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	}
 	verifier := new(models.EmailVerification)
 	verifier.Code, _ = pkg.GenerateOTP()
-	verifier.ExpiresAt = time.Now().Add(60 * time.Second)
+	verifier.ExpiresAt = time.Now().Add(30 * time.Second)
 	verifier.UserID = user.ID
 
 	result = models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
@@ -57,6 +54,9 @@ func RegisterUser(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
 		}
 	}
+
+	//FIXME: SEND AN EMAIL HERE 
+	
 
 	cookie := new(fiber.Cookie)
 	cookie.Name = "RefreshToken"
@@ -99,10 +99,9 @@ func LoginUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
 	}
 
-	// if !dbUser.IsVerified {
-	// 	fmt.Println("Redirecting")
-	// 	return c.Redirect("/auth/verify-account", fiber.StatusTemporaryRedirect)
-	// }
+	if !dbUser.IsVerified {
+		return c.Redirect("/auth/verify-account", fiber.StatusTemporaryRedirect)
+	}
 
 	cookie := new(fiber.Cookie)
 	cookie.Name = "RefreshToken"
@@ -193,17 +192,17 @@ func VerifyAccount(c *fiber.Ctx) error {
 	}
 	if time.Now().After(verifier.ExpiresAt) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"status": "Failed", 
+			"status": "Failed",
 			"errors": "Token has expired",
 		})
 	}
-	
+
 	if verifier.Code != otprequest.Code {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
 	}
 
 	models.DB.Model(&user).Update("is_verified", true)
-	// models.DB.Delete(&verifier)
+	models.DB.Delete(&verifier)
 	return c.SendStatus(fiber.StatusAccepted)
 }
 
@@ -229,6 +228,35 @@ func ResetPassword(c *fiber.Ctx) error {
 	}
 	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
 	models.DB.Where("uuid = ? ", userid).Update("password", password.Password)
-	
+
+	return c.SendStatus(fiber.StatusAccepted)
+}
+
+func GetNewVerficationCode(c *fiber.Ctx) error {
+	token := c.GetReqHeaders()["Authorization"][0]
+	token = strings.ReplaceAll(token, "Bearer ", "")
+	verfiedtoken, err := VerifyToken(token)
+
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+
+	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
+	var user models.User
+	models.DB.Where("uuid = ?", userid).First(&user)
+	verifier := new(models.EmailVerification)
+	verifier.Code, _ = pkg.GenerateOTP()
+	verifier.ExpiresAt = time.Now().Add(30 * time.Second)
+	verifier.UserID = user.ID
+
+	result := models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": "User already exists"})
+		} else {
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
+		}
+	}
+	//FIXME: SEND AN EMAIL HERE 
 	return c.SendStatus(fiber.StatusAccepted)
 }
