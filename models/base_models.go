@@ -11,40 +11,40 @@ import (
 type User struct {
 	gorm.Model
 	// ID           uint      `gorm:"primaryKey;column:id;autoIncrement"`
-	UUID              uuid.UUID `gorm:"type:uuid;default:uuid_generate_v4();"`
-	Password          string    `json:"password,omitempty" gorm:"column:password;not null" validate:"required,validate_password"`
-	ConfirmPassword   string    `json:"confirm_password,omitempty" gorm:"-" validate:"required"`
-	FullName          string    `json:"full_name" gorm:"column:full_name;not null" validate:"required"`
-	Email             string    `json:"email" gorm:"column:email;not null;unique" validate:"required,email,school_email"`
-	PhoneNumber       string    `json:"phone_number" gorm:"column:phone_number;not null" validate:"required"`
-	ImageURL          string    `json:"profile_image" gorm:"column:profile_image"`
-	RefreshToken      string    `gorm:"column:refresh_token"`
-	IsVerified        bool      `json:"is_verified" gorm:"column:is_verified"`
-	EmailVerification EmailVerification `json:"omitempty"`
+	UUID               uuid.UUID         `gorm:"type:uuid;default:uuid_generate_v4();"`
+	Password           string            `json:"password,omitempty" gorm:"column:password;not null" validate:"required,validate_password"`
+	ConfirmPassword    string            `json:"confirm_password,omitempty" gorm:"-" validate:"required"`
+	FullName           string            `json:"full_name" gorm:"column:full_name;not null" validate:"required"`
+	Email              string            `json:"email" gorm:"column:email;not null;unique" validate:"required,email,school_email"`
+	PhoneNumber        string            `json:"phone_number" gorm:"column:phone_number;not null" validate:"required"`
+	ImageURL           string            `json:"profile_image" gorm:"column:profile_image"`
+	RefreshToken       string            `gorm:"column:refresh_token"`
+	PasswordResetToken string            `gorm:"column:password_token;default:' '"`
+	IsVerified         bool              `json:"is_verified" gorm:"column:is_verified"`
+	EmailVerification  EmailVerification `json:"omitempty"`
 }
 
 func (u *User) MarshalJSON() ([]byte, error) {
-    return json.Marshal(struct {
-        ID          uuid.UUID `json:"id"`
-        FullName    string    `json:"full_name"`
-        Email       string    `json:"email"`
-        PhoneNumber string    `json:"phone_number"`
-        ImageURL    string    `json:"profile_image"`
-        IsVerified  bool      `json:"is_verified"`
-
-    }{
-        ID:          u.UUID,
-        FullName:    u.FullName,
-        Email:       u.Email,
-        PhoneNumber: u.PhoneNumber,
-        ImageURL:    u.ImageURL,
-        IsVerified:  u.IsVerified,
-    })
+	return json.Marshal(struct {
+		ID          uuid.UUID `json:"id"`
+		FullName    string    `json:"full_name"`
+		Email       string    `json:"email"`
+		PhoneNumber string    `json:"phone_number"`
+		ImageURL    string    `json:"profile_image"`
+		IsVerified  bool      `json:"is_verified"`
+	}{
+		ID:          u.UUID,
+		FullName:    u.FullName,
+		Email:       u.Email,
+		PhoneNumber: u.PhoneNumber,
+		ImageURL:    u.ImageURL,
+		IsVerified:  u.IsVerified,
+	})
 }
 
 type LoginDetails struct {
-	Email             string    `json:"email" validate:"required,email,school_email"`	
-	Password          string    `json:"password" validate:"required"`
+	Email    string `json:"email" validate:"required,email,school_email"`
+	Password string `json:"password" validate:"required"`
 }
 
 type EmailVerification struct {

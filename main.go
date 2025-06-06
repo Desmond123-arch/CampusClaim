@@ -59,5 +59,9 @@ func main() {
 	authRoutes.Post("/login", auth.LoginUser)
 	authRoutes.Post("/verify-account", middleware.VerifyRateLimiter, auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
+
+	authRoutes.Put("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
+	authRoutes.Post("/reset-password-request", auth.RequestPasswordreset)
+	authRoutes.Post("/reset-password", auth.ResetPassword)
 	app.Listen(":3000")
 }

@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"crypto/rand"
 	"errors"
+	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -55,8 +58,14 @@ func RegisterUser(c *fiber.Ctx) error {
 		}
 	}
 
-	//FIXME: SEND AN EMAIL HERE 
-	
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered in email goroutine:", r)
+			}
+		}()
+		pkg.SendVerficationEmail(user.Email, user.FullName, verifier)
+	}()
 
 	cookie := new(fiber.Cookie)
 	cookie.Name = "RefreshToken"
@@ -84,7 +93,10 @@ func LoginUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
 	}
 	var dbUser models.User
-	models.DB.Where("email = ?", user.Email).First(&dbUser)
+	result := models.DB.Where("email = ?", user.Email).First(&dbUser)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
 	isValid := pkg.VerifyHash(user.Password, dbUser.Password)
 	if !isValid {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
@@ -99,9 +111,10 @@ func LoginUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
 	}
 
-	if !dbUser.IsVerified {
-		return c.Redirect("/auth/verify-account", fiber.StatusTemporaryRedirect)
-	}
+	// if !dbUser.IsVerified {
+	// 	//make user verify account by routing and requesting for a new email
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Account not verified"})
+	// }
 
 	cookie := new(fiber.Cookie)
 	cookie.Name = "RefreshToken"
@@ -130,8 +143,10 @@ func GetNewRefreshToken(c *fiber.Ctx) error {
 	}
 	userid, _ := token.Claims.(jwt.MapClaims).GetSubject()
 	var user models.User
-	models.DB.Where("uuid = ? ", userid).First(&user)
-
+	result := models.DB.Where("uuid = ? ", userid).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
 	if user.RefreshToken != refreshToken {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
 	}
@@ -180,16 +195,15 @@ func VerifyAccount(c *fiber.Ctx) error {
 
 	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
 	var user models.User
-	models.DB.Where("uuid = ? ", userid).First(&user)
+	result := models.DB.Where("uuid = ? ", userid).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
 	if user.IsVerified {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "User already verified"})
 	}
 	verifier := new(models.EmailVerification)
-	err = models.DB.Where("user_id = ?", user.ID).First(&verifier).Error
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "User not found"})
-
-	}
+	models.DB.Where("user_id = ?", user.ID).First(&verifier)
 	if time.Now().After(verifier.ExpiresAt) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status": "Failed",
@@ -206,7 +220,7 @@ func VerifyAccount(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusAccepted)
 }
 
-func ResetPassword(c *fiber.Ctx) error {
+func ChangePassword(c *fiber.Ctx) error {
 	type PasswordRequest struct {
 		Password string `json:"password,omitempty" gorm:"column:password;not null" validate:"required"`
 	}
@@ -215,6 +229,7 @@ func ResetPassword(c *fiber.Ctx) error {
 	if err := c.BodyParser(&password); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Invalid request body"})
 	}
+	password.Password, _ = pkg.HashPassword(password.Password)
 	errs := pkg.GeneralValidator().Validate(password)
 
 	if len(errs) != 0 {
@@ -232,6 +247,64 @@ func ResetPassword(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusAccepted)
 }
 
+func RequestPasswordreset(c *fiber.Ctx) error {
+	type EmailRequest struct {
+		Email string `json:"email" validate:"required,email"`
+	}
+	req := new(EmailRequest)
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+	var user models.User
+	result := models.DB.Where("email = ?", req.Email).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
+
+	b := make([]byte, 8)
+	rand.Read(b)
+	newToken := fmt.Sprintf("%x", b)
+	result = models.DB.Model(&user).Update("password_token", newToken)
+	fmt.Println(result)
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
+	}
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered in email goroutine:", r)
+			}
+		}()
+		pkg.SendResetEmail(user.Email, newToken)
+	}()
+	return c.SendStatus(fiber.StatusAccepted)
+}
+
+func ResetPassword(c *fiber.Ctx) error {
+	token := c.Query("token")
+	type PasswordResetRequest struct {
+		Password string `json:"password" validate:"required"`
+	}
+
+	req := new(PasswordResetRequest)
+	if err := c.BodyParser(req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid request"})
+	}
+	req.Password, _ = pkg.HashPassword(req.Password)
+	result := models.DB.Model(&models.User{}).
+		Where("password_token = ?", token).
+		Updates(map[string]interface{}{
+			"password":       string(req.Password),
+			"password_token": "",
+		})
+
+	if result.RowsAffected == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Password successfully reset"})
+}
+
 func GetNewVerficationCode(c *fiber.Ctx) error {
 	token := c.GetReqHeaders()["Authorization"][0]
 	token = strings.ReplaceAll(token, "Bearer ", "")
@@ -243,13 +316,16 @@ func GetNewVerficationCode(c *fiber.Ctx) error {
 
 	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
 	var user models.User
-	models.DB.Where("uuid = ?", userid).First(&user)
+	result := models.DB.Where("uuid = ?", userid).First(&user)
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect User Details"})
+	}
 	verifier := new(models.EmailVerification)
 	verifier.Code, _ = pkg.GenerateOTP()
 	verifier.ExpiresAt = time.Now().Add(30 * time.Second)
 	verifier.UserID = user.ID
 
-	result := models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
+	result = models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrDuplicatedKey) {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": "User already exists"})
@@ -257,6 +333,13 @@ func GetNewVerficationCode(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
 		}
 	}
-	//FIXME: SEND AN EMAIL HERE 
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Println("Recovered in email goroutine:", r)
+			}
+		}()
+		pkg.SendVerficationEmail(user.Email, user.FullName, verifier)
+	}()
 	return c.SendStatus(fiber.StatusAccepted)
 }
