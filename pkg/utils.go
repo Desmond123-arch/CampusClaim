@@ -1,11 +1,18 @@
 package pkg
 
 import (
+	"bytes"
 	"crypto/rand"
+	"fmt"
+	"os"
+	"strconv"
+	"text/template"
+	"time"
 
+	"github.com/Desmond123-arch/CampusClaim/models"
 	"golang.org/x/crypto/bcrypt"
+	"gopkg.in/gomail.v2"
 )
-
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
@@ -24,17 +31,92 @@ const otpChars = "1234567890"
 
 func GenerateOTP() (string, error) {
 	length := 6
-    buffer := make([]byte, length)
-    _, err := rand.Read(buffer)
-    if err != nil {
-        return "", err
-    }
+	buffer := make([]byte, length)
+	_, err := rand.Read(buffer)
+	if err != nil {
+		return "", err
+	}
 
-    otpCharsLength := len(otpChars)
-    for i := range length {
-        buffer[i] = otpChars[int(buffer[i])%otpCharsLength]
-    }
+	otpCharsLength := len(otpChars)
+	for i := range length {
+		buffer[i] = otpChars[int(buffer[i])%otpCharsLength]
+	}
 
-    return string(buffer), nil
+	return string(buffer), nil
 }
 
+// one for password resets, one for verfication
+func SendVerficationEmail(email string, name string, verfier *models.EmailVerification) {
+	type EmailData struct {
+		Name    string
+		Code    string
+		Expires string
+	}
+	password := os.Getenv("GMAIL_PASSWORD")
+	m := gomail.NewMessage()
+	m.SetHeader("From", "campusclaimumat@gmail.com")
+	m.SetHeader("To", email)
+	m.SetHeader("Subject", "Verify your account")
+	templ, err := template.ParseFiles("pkg/templates/VerifyAccount.html")
+	if err != nil {
+		panic(err)
+	}
+	var renderedHTML bytes.Buffer
+	exipres_in := verfier.ExpiresAt.Sub(time.Now()).Seconds()
+	data := EmailData{
+		Name:    name,
+		Code:    verfier.Code,
+		Expires: strconv.FormatFloat(exipres_in, 'f', -1, 64),
+	}
+
+	err = templ.Execute(&renderedHTML, data)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	m.SetBody("text/html", renderedHTML.String())
+
+	d := gomail.NewDialer("smtp.gmail.com", 465, "campusclaimumat@gmail.com", password)
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Email sent")
+}
+
+func SendResetEmail(email string, token string) {
+	type EmailData struct {
+		Url string
+	}
+	password := os.Getenv("GMAIL_PASSWORD")
+	m := gomail.NewMessage()
+	m.SetHeader("From", "campusclaimumat@gmail.com")
+	m.SetHeader("To", email)
+	m.SetHeader("Subject", "Reset Password")
+	templ, err := template.ParseFiles("pkg/templates/ResetPassword.html")
+	if err != nil {
+		panic(err)
+	}
+	var renderedHTML bytes.Buffer
+	data := EmailData{
+		Url: fmt.Sprintf("https://campusclaim.com/reset-password?token=%s", token),
+	}
+
+	err = templ.Execute(&renderedHTML, data)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+
+	m.SetBody("text/html", renderedHTML.String())
+
+	d := gomail.NewDialer("smtp.gmail.com", 465, "campusclaimumat@gmail.com", password)
+
+	if err := d.DialAndSend(m); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Email sent")
+}
