@@ -18,6 +18,8 @@ func Init() {
 		PreferSimpleProtocol: true,
 	}), &gorm.Config{ TranslateError: true})
 
+	//setup for categories
+
 	if err != nil {
         panic("failed to connect database")
     }

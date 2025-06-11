@@ -7,8 +7,10 @@ import (
 
 	// "time"
 
+	v1 "github.com/Desmond123-arch/CampusClaim/api/v1"
 	"github.com/Desmond123-arch/CampusClaim/internal/auth"
 	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
+
 	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
@@ -53,7 +55,7 @@ func main() {
 	app.Use(logger.New())
 
 	authRoutes := app.Group("/auth")
-
+	profileRoutes := app.Group("/profile")
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
@@ -63,5 +65,12 @@ func main() {
 	authRoutes.Put("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
 	authRoutes.Post("/reset-password-request", auth.RequestPasswordreset)
 	authRoutes.Post("/reset-password", auth.ResetPassword)
+
+
+	//PROFILE ROUTES
+	profileRoutes.Get("", middleware.AuthenticateMiddleware, v1.GetProfile)
+	profileRoutes.Patch("", middleware.AuthenticateMiddleware, v1.UpdateProfile)
+	profileRoutes.Delete("", middleware.AuthenticateMiddleware, v1.DeleteProfile)
 	app.Listen(":3000")
+
 }
