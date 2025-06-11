@@ -75,9 +75,6 @@ func validatePassword(f1 validator.FieldLevel) bool {
 	confirmPassword := confirmField.String()
 	password := f1.Field().String()
 
-	// fmt.Println("Password:", password)
-	// fmt.Println("ConfirmPassword:", confirmPassword)
-
 	return confirmPassword == password
 }
 

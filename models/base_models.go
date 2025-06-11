@@ -24,6 +24,8 @@ type User struct {
 	EmailVerification  EmailVerification `json:"omitempty"`
 }
 
+
+
 func (u *User) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
 		ID          uuid.UUID `json:"id"`
@@ -93,4 +95,13 @@ type Images struct {
 
 func Setup(db *gorm.DB) {
 	db.AutoMigrate(&User{}, &Item_Status{}, &Categories{}, &Item{}, &Images{}, &EmailVerification{})
+	categories := []Categories{
+		{NAME: "LOST"},
+		{NAME: "FOUND"},
+		{NAME: "CLAIMED"},
+	}
+	
+	for _, c := range categories {
+		db.FirstOrCreate(&c, Categories{NAME: c.NAME})
+	}
 }
