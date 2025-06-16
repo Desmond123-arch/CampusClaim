@@ -56,6 +56,8 @@ func main() {
 
 	authRoutes := app.Group("/auth")
 	profileRoutes := app.Group("/profile")
+	itemsRoutes := app.Group("/items")
+	claimRoutes := app.Group("/claims")
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
@@ -66,11 +68,24 @@ func main() {
 	authRoutes.Post("/reset-password-request", auth.RequestPasswordreset)
 	authRoutes.Post("/reset-password", auth.ResetPassword)
 
-
 	//PROFILE ROUTES
 	profileRoutes.Get("", middleware.AuthenticateMiddleware, v1.GetProfile)
 	profileRoutes.Patch("", middleware.AuthenticateMiddleware, v1.UpdateProfile)
 	profileRoutes.Delete("", middleware.AuthenticateMiddleware, v1.DeleteProfile)
+
+	//ITEMS_ROUTES
+	itemsRoutes.Get("", v1.GetItems)
+	itemsRoutes.Get("/:id", v1.GetItem)
+	itemsRoutes.Get("/my-items", middleware.AuthenticateMiddleware, v1.GetMyItems)
+	itemsRoutes.Post("", middleware.AuthenticateMiddleware, v1.AddItem)
+	itemsRoutes.Delete("/:id", middleware.AuthenticateMiddleware, v1.DeleteItem)
+	itemsRoutes.Put("/:id", middleware.AuthenticateMiddleware, v1.UpdateItem)
+
+	//CLAIM_ROUTES
+	claimRoutes.Get("/:id", middleware.AuthenticateMiddleware, v1.GetItemCliams)
+	claimRoutes.Post("/:id", middleware.AuthenticateMiddleware, v1.SubmitClaim)
+	claimRoutes.Delete("/:id", middleware.AuthenticateMiddleware, v1.DeleteClaim)
+
 	app.Listen(":3000")
 
 }
