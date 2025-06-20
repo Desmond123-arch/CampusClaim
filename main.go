@@ -82,6 +82,7 @@ func main() {
 	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetMessages)
 	app.Get(
 		"/ws",
+		middleware.AuthenticateMiddleware,
 		chat.WebSocketUpgradeMiddleware(),
 		websocket.New(chat.HandleWebSocket),
 	  )
