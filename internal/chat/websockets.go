@@ -38,12 +38,10 @@ type IncomingMessage struct {
 }
 
 func HandleWebSocket(c *websocket.Conn) {
-	userID := "abed67f3-7c37-4a2b-ad83-6f7dc4176249"
+	userID := c.Locals("userID").(string)
 	fmt.Println(userID)
 	Clients[userID] = c
 	defer delete(Clients, userID)
-
-	
 
 	for {
 		var msg IncomingMessage
