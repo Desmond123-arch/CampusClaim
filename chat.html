@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>WebSocket Chat Test</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #chat { height: 200px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+    #status { color: green; }
+  </style>
+</head>
+<body>
+  <h2>🧪 Chat WebSocket Test</h2>
+
+  <div><strong>Status:</strong> <span id="status">Connecting...</span></div>
+
+  <div id="chat"></div>
+
+  <label>Receiver ID: <input type="text" id="receiver" value="user456" /></label><br><br>
+  <label>Message: <input type="text" id="message" /></label>
+  <button onclick="sendMessage()">Send</button>
+
+  <script>
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTAzOTEyMjMsImlhdCI6MTc1MDM4NzYyMywiaXNzIjoiQ2FtcHVzQ2xhaW0iLCJzdWIiOiJhYmVkNjdmMy03YzM3LTRhMmItYWQ4My02ZjdkYzQxNzYyNDkifQ.gw3mLAjuEsjRpXrZsbhOk0Lsb0D5CNE1YMTqN-YzxYk"; // Your simulated JWT
+    const socket = new WebSocket("ws://localhost:3000/ws");
+
+    const status = document.getElementById("status");
+    const chat = document.getElementById("chat");
+
+    socket.onopen = () => {
+      status.textContent = "Connected ✅";
+    };
+
+    socket.onmessage = (event) => {
+      const msg = JSON.parse(event.data);
+      const line = `[${new Date(msg.timestamp * 1000).toLocaleTimeString()}] ${msg.sender_id}: ${msg.message}`;
+      chat.innerHTML += line + "<br/>";
+      chat.scrollTop = chat.scrollHeight;
+    };
+
+    socket.onerror = (err) => {
+      status.textContent = "WebSocket error ❌";
+      console.error("WebSocket error", err);
+    };
+
+    socket.onclose = () => {
+      status.textContent = "Disconnected 🔌";
+    };
+
+    function sendMessage() {
+      const receiver = document.getElementById("receiver").value;
+      const message = document.getElementById("message").value;
+      const payload = {
+        receiver_id: receiver,
+        message: message,
+      };
+      socket.send(JSON.stringify(payload));
+      document.getElementById("message").value = "";
+    }
+  </script>
+</body>
+</html>
