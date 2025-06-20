@@ -2,13 +2,14 @@ package main
 
 import (
 	// "context"
+	"context"
 	"log"
-	"os"
 
 	// "time"
 
 	v1 "github.com/Desmond123-arch/CampusClaim/api/v1"
 	"github.com/Desmond123-arch/CampusClaim/internal/auth"
+	"github.com/Desmond123-arch/CampusClaim/internal/chat"
 	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
 
 	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
@@ -16,6 +17,7 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/websocket/v2"
 	"github.com/lpernett/godotenv"
 	"gorm.io/gorm"
 )
@@ -29,18 +31,8 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	//POSTGRES SETUP
-	mongodb_url := os.Getenv("MONGODB_URL")
-
 	models.Init()
-	//MONGODB SETUP
-	mongoDB, err := models.MongoSetup(mongodb_url)
-	if err != nil {
-		log.Fatalf("Error connecting to MongoDB: %v", err)
-	}
-
-	defer mongoDB.Close()
-
+	defer models.MDB.Disconnect(context.Background())
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusBadRequest).JSON(pkg.GlobalErrorHandlerResp{
@@ -86,6 +78,14 @@ func main() {
 	claimRoutes.Post("/:id", middleware.AuthenticateMiddleware, v1.SubmitClaim)
 	claimRoutes.Delete("/:id", middleware.AuthenticateMiddleware, v1.DeleteClaim)
 
+	//CHAT AND WEBSOCKETS
+	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetMessages)
+	app.Get(
+		"/ws",
+		chat.WebSocketUpgradeMiddleware(),
+		websocket.New(chat.HandleWebSocket),
+	  )
+	  
 	app.Listen(":3000")
 
 }
