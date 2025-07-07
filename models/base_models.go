@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -158,6 +159,7 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 
 
 func Setup(db *gorm.DB) {
+	fmt.Printf("CREATING TABLES")
 	db.AutoMigrate(
 		&User{}, &Item_Status{}, 
 		&Claims{}, &Categories{}, 

@@ -1,6 +1,7 @@
 package models
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/redis/go-redis/v9"
@@ -13,14 +14,19 @@ var DB *gorm.DB
 var RedisClient *redis.Client
 var MDB *mongo.Client
 func Init() {
-	postgres_url := os.Getenv("POSTGRES_URL")
 	mongodb_url := os.Getenv("MONGODB_URL")
 
 	var err error
-	DB, err = gorm.Open(postgres.New(postgres.Config{
-		DSN:postgres_url,
-		PreferSimpleProtocol: true,
-	}), &gorm.Config{ TranslateError: true})
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+		os.Getenv("POSTGRES_HOST"),
+		os.Getenv("POSTGRES_USER"),
+		os.Getenv("POSTGRES_PASSWORD"),
+		os.Getenv("POSTGRES_DB"),
+		os.Getenv("POSTGRES_PORT"),
+	)
+
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{ TranslateError: true})
 
 	//setup for categories
 
@@ -29,8 +35,10 @@ func Init() {
     }
 	Setup(DB)
 	MDB, err = MongoSetup(mongodb_url)
+	fmt.Println(mongodb_url)
 	if err != nil {
-        panic("failed to connect database")
+		fmt.Println(err)
+        panic("failed to connect to mongo database")
     }
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr: "localhost:6379",
