@@ -24,12 +24,14 @@ import (
 
 var DB *gorm.DB
 
-func main() {
-	err := godotenv.Load()
+func init() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Println("No .env file found, relying on environment variables")
+    }
+}
 
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+func main() {
 
 	models.Init()
 	defer models.MDB.Disconnect(context.Background())
