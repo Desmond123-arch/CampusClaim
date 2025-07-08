@@ -1,0 +1,8 @@
+torch
+faiss-cpu
+transformers
+fastapi
+uvicorn
+Pillow
+requests
+
