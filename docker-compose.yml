@@ -14,8 +14,6 @@ services:
   mongo:
     image: "mongo:latest"
     restart: always
-    ports:
-      - "27017:27017"
   db:
     image: postgres:latest
     restart: always
