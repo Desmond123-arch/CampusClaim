@@ -1,3 +1,4 @@
 .env
 /tmp
 /simple_search/.venv
+/simple_search/venv
