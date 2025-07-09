@@ -80,7 +80,7 @@ type Item struct {
 	StatusID    uint      `json:"status,omitempty" gorm:"column:status_id"`
 	CategoryID  uint      `json:"category,omitempty" gorm:"column:category_id"`
 	//CategoryID
-
+	Image  string `gorm:""`
 	User        User        `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE;" validate:"-"`
 	Item_Status Item_Status `gorm:"foreignKey:StatusID;references:ID" validate:"-"`
 	Categories  Categories  `gorm:"foreignKey:CategoryID;references:ID" validate:"-"`

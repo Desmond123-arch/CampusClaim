@@ -2,11 +2,16 @@ package v1
 
 import (
 	"errors"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
-	"strings"
 )
 
 func GetItems(c *fiber.Ctx) error {
@@ -98,19 +103,26 @@ func AddItem(c *fiber.Ctx) error {
 	}
 	var categories models.Categories
 	var item_status models.Item_Status
-	var requestBody CreateItemRequest
-	if err := c.BodyParser(&requestBody); err != nil {
+	bounty, err := strconv.ParseUint(c.FormValue("bounty"), 10, 32)
+	if err != nil {
+		fmt.Println(err)
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
-			"error":  "Invalid Request Body",
+			"error":  "Invalid Bounty Value",
 		})
+	}
+	requestBody := &CreateItemRequest{
+		Title:       c.FormValue("title"),
+		Description: c.FormValue("description"),
+		Bounty:      uint(bounty),
+		Category:    c.FormValue("category"),
+		Status:      c.FormValue("status"),
 	}
 
 	errs := pkg.GeneralValidator().Validate(requestBody)
 	if len(errs) != 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
 	}
-
 	if err := models.DB.Where("categories.category = ?", requestBody.Category).First(&categories).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "Failed",
@@ -124,6 +136,40 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Invalid Item Status",
 		})
 	}
+	//image uploading
+	fileHeader, err := c.FormFile("image")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status": "false",
+			"error":  "Image is required",
+		})
+	}
+
+	// Open the file from the file header
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status": "false",
+			"error":  "Failed to open image file",
+		})
+	}
+	defer file.Close()
+	access_key := os.Getenv("DIGITAL_OCEAN_ACCESS")
+	secret := os.Getenv("DIGITAL_OCEAN_SECRET")
+	bucket := os.Getenv("DIGITAL_OCEAN_BUCKET")
+	endpoint := os.Getenv("DIGITAL_OCEAN_ENDPOINT")
+	region := os.Getenv("DIGITAL_OCEAN_REGION")
+	uploader := pkg.NewSpacesUploader(access_key, secret, region, bucket, endpoint)
+	imageURL, err := uploader.UploadFile(file, fileHeader)
+
+	if err != nil {
+		fmt.Println(err)
+		return c.Status(400).JSON(fiber.Map{
+			"status": "false",
+			"error":  "Image upload error",
+		})
+	}
+
 	item := models.Item{
 		Title:       requestBody.Title,
 		Description: requestBody.Description,
@@ -136,12 +182,24 @@ func AddItem(c *fiber.Ctx) error {
 		Categories:  categories,
 	}
 	if err := models.DB.Create(&item).Error; err != nil {
+		fmt.Println(err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"status": "false",
 			"error":  "Failed to create item",
 		})
 	}
+	image := models.Images{
+		ItemID:    item.ID,
+		ImageUrl:  imageURL,
+		UpdatedAt: time.Now(),
+	}
 
+	if err := models.DB.Create(&image).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "false",
+			"error":  "Failed to create item",
+		})
+	}
 	// Re-fetch the item with associations
 	if err := models.DB.Preload("User").Preload("Item_Status").Preload("Categories").
 		First(&item, item.ID).Error; err != nil {
@@ -154,6 +212,7 @@ func AddItem(c *fiber.Ctx) error {
 		"status": "success",
 		"item":   &item,
 	})
+
 }
 
 func UpdateItem(c *fiber.Ctx) error {
