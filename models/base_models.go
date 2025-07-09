@@ -64,7 +64,6 @@ type Claim_Status struct {
 	Name string `gorm:"unique;column:status"`
 }
 
-
 type Categories struct {
 	gorm.Model
 	NAME string `gorm:"unique;column:category"`
@@ -73,20 +72,27 @@ type Categories struct {
 type Item struct {
 	gorm.Model
 	UUID        uuid.UUID `json:"item_uuid" gorm:"type:uuid;default:uuid_generate_v4();column:item_uuid"`
-	Title       string    `gorm:"size:1000;column:title;not null" validate:"required"`
+	Title       string    `json:"title" gorm:"size:1000;column:title;not null" validate:"required"`
 	Description string    `json:"description" gorm:"size:65535;column:description" validate:"required"`
 	Bounty      uint      `json:"bounty" gorm:"column:bounty;default:0" validate:"required,numeric"`
-	UserID      uint      `json:"user_id,omitempty" gorm:"column:posted_by"`
-	StatusID    uint      `json:"status,omitempty" gorm:"column:status_id"`
-	CategoryID  uint      `json:"category,omitempty" gorm:"column:category_id"`
-	//CategoryID
-	Image  string `gorm:""`
-	User        User        `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE;" validate:"-"`
-	Item_Status Item_Status `gorm:"foreignKey:StatusID;references:ID" validate:"-"`
-	Categories  Categories  `gorm:"foreignKey:CategoryID;references:ID" validate:"-"`
+
+	UserID     uint `gorm:"column:posted_by"`
+	StatusID   uint `gorm:"column:status_id"`
+	CategoryID uint `gorm:"column:category_id"`
+
+	User        User        `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
+	Item_Status Item_Status `gorm:"foreignKey:StatusID;references:ID"`
+	Categories  Categories  `gorm:"foreignKey:CategoryID;references:ID"`
+	Images      []Images    `gorm:"foreignKey:ItemID;references:ID"` // Assuming you want multiple images per item
 }
 
+
 func (i Item) MarshalJSON() ([]byte, error) {
+	// Collect image URLs
+	imageURLs := []string{}
+	for _, img := range i.Images {
+		imageURLs = append(imageURLs, img.ImageUrl)
+	}
 
 	return json.Marshal(&struct {
 		UUID        uuid.UUID `json:"item_uuid"`
@@ -97,6 +103,7 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		Category    string    `json:"category"`
 		PostedBy    string    `json:"posted_by"`
 		CreatedAt   time.Time `json:"created_at"`
+		ImageUrls   []string  `json:"image_urls"`
 	}{
 		UUID:        i.UUID,
 		Title:       i.Title,
@@ -106,64 +113,68 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		Category:    i.Categories.NAME,
 		PostedBy:    i.User.FullName,
 		CreatedAt:   i.CreatedAt,
+		ImageUrls:   imageURLs,
 	})
 }
 
+
 type Images struct {
 	gorm.Model
-	ItemID    uint      `gorm:"column:item_id"`
-	ImageUrl  string    `gorm:"column:image_url;not null"`
-	UpdatedAt time.Time `gorm:"column:updated_at"`
+	ItemID    uint     `json:"item_id" gorm:"column:item_id"`
+	ImageUrl  string    `json:"image_url" gorm:"column:image_url;not null"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at"`
 
-	Item Item `gorm:"foreignKey:ItemID;references:ID"`
+	// Avoid deep recursion by omitting Item or making it ignored by JSON
+	Item *Item `gorm:"foreignKey:ItemID;references:ID" json:"-"`
 }
+
+
 
 type Claims struct {
 	gorm.Model
 	ClaimID  uuid.UUID `gorm:"column:claim_id;default:uuid_generate_v4();"`
-	ItemID uint `gorm:"column:item_id;uniqueIndex:idx_user_item"`
-	UserID uint `gorm:"column:posted_by;uniqueIndex:idx_user_item"`	
-	StatusID uint `json:"status,omitempty" gorm:"column:status_id"`
+	ItemID   uint      `gorm:"column:item_id;uniqueIndex:idx_user_item"`
+	UserID   uint      `gorm:"column:posted_by;uniqueIndex:idx_user_item"`
+	StatusID uint      `json:"status,omitempty" gorm:"column:status_id"`
 
-	User        User        `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE;" validate:"-"`
+	User        User         `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE;" validate:"-"`
 	ClaimStatus Claim_Status `gorm:"foreignKey:StatusID;references:ID" validate:"-"`
-	Item        Item        `gorm:"foreignKey:ItemID;references:ID" validate:"-"`
+	Item        Item         `gorm:"foreignKey:ItemID;references:ID" validate:"-"`
 }
 
 func (c Claims) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(&struct {
-		ID          uint      `json:"id"`
-		ClaimID     uuid.UUID `json:"claim_id"`
-		ItemID      uint      `json:"item_id"`
-		UserID      uint      `json:"user_id"`
-		Status      string    `json:"status"`
-		ClaimedBy   string    `json:"claimed_by"`
-		ItemTitle   string    `json:"item_title"`
-		ItemUUID    uuid.UUID `json:"item_uuid"`
-		Bounty      uint      `json:"bounty"`
-		CreatedAt   time.Time `json:"created_at"`
+		ID        uint      `json:"id"`
+		ClaimID   uuid.UUID `json:"claim_id"`
+		ItemID    uint      `json:"item_id"`
+		UserID    uint      `json:"user_id"`
+		Status    string    `json:"status"`
+		ClaimedBy string    `json:"claimed_by"`
+		ItemTitle string    `json:"item_title"`
+		ItemUUID  uuid.UUID `json:"item_uuid"`
+		Bounty    uint      `json:"bounty"`
+		CreatedAt time.Time `json:"created_at"`
 	}{
-		ID:         c.ID,
-		ClaimID:    c.ClaimID,
-		ItemID:     c.ItemID,
-		UserID:     c.UserID,
-		Status:     c.ClaimStatus.Name,
-		ClaimedBy:  c.User.FullName,
-		ItemTitle:  c.Item.Title,
-		ItemUUID:   c.Item.UUID,
-		Bounty:     c.Item.Bounty,
-		CreatedAt:  c.CreatedAt,
+		ID:        c.ID,
+		ClaimID:   c.ClaimID,
+		ItemID:    c.ItemID,
+		UserID:    c.UserID,
+		Status:    c.ClaimStatus.Name,
+		ClaimedBy: c.User.FullName,
+		ItemTitle: c.Item.Title,
+		ItemUUID:  c.Item.UUID,
+		Bounty:    c.Item.Bounty,
+		CreatedAt: c.CreatedAt,
 	})
 }
-
 
 func Setup(db *gorm.DB) {
 	fmt.Printf("CREATING TABLES")
 	db.AutoMigrate(
-		&User{}, &Item_Status{}, 
-		&Claims{}, &Categories{}, 
-		&Item{}, &Images{}, 
+		&User{}, &Item_Status{},
+		&Claims{}, &Categories{},
+		&Item{}, &Images{},
 		&EmailVerification{})
 
 	item_status := []Item_Status{
@@ -174,7 +185,7 @@ func Setup(db *gorm.DB) {
 	claim_status := []Claim_Status{
 		{Name: "Pending"},
 		{Name: "Approved"},
-		{Name:"Rejected"},
+		{Name: "Rejected"},
 	}
 	categories := []Categories{
 		{NAME: "Electronics"},
@@ -186,7 +197,7 @@ func Setup(db *gorm.DB) {
 		{NAME: "Keys"},
 		{NAME: "Wallets"},
 	}
-	
+
 	for _, i := range item_status {
 		db.FirstOrCreate(&i, Item_Status{Name: i.Name})
 	}
