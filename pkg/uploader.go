@@ -1,81 +1,82 @@
 package pkg
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"log"
 	"mime/multipart"
-	"strings"
+	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/Desmond123-arch/CampusClaim/models"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-type SpacesUploader struct {
-	Client     *s3.Client
-	Bucket     string
-	SpaceURL   string
-	Region     string
-	UploadPath string
-}
-
-func NewSpacesUploader(accessKey, secretKey, region, bucket, endpoint string) *SpacesUploader {
-	// Ensure endpoint includes https://
-	if !strings.HasPrefix(endpoint, "http://") && !strings.HasPrefix(endpoint, "https://") {
-		endpoint = "https://" + endpoint
+func UploadFile(endpoint, region, bucket, key, secret string, file multipart.File,fileHeader *multipart.FileHeader ,ctx context.Context) (string, error) {
+	s3Config := &aws.Config{
+		Credentials: credentials.NewStaticCredentials(key, secret, ""),
+		Endpoint:    aws.String(endpoint),
+		Region:      aws.String(region),
+		// S3ForcePathStyle: aws.Bool(false),
 	}
-
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		return aws.Endpoint{
-			URL:           endpoint,
-			SigningRegion: region,
-		}, nil
-	})
-
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(region),
-		config.WithEndpointResolverWithOptions(customResolver),
-		config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")),
-	)
-	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
-	}
-
-	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
-		o.UsePathStyle = true
-	})
-
-	return &SpacesUploader{
-		Client:   client,
-		Bucket:   bucket,
-		SpaceURL: endpoint,
-		Region:   region,
-	}
-}
-
-func (u *SpacesUploader) UploadFile(file multipart.File, fileHeade *multipart.FileHeader) (string, error) {
-	defer file.Close()
-
-	buf := new(bytes.Buffer)
-	_, err := buf.ReadFrom(file)
+	sess, err := session.NewSession(s3Config)
 	if err != nil {
 		return "", err
 	}
-	fileName := fmt.Sprintf("%d-%s", time.Now().Unix(), fileHeade.Filename)
-	_, err = u.Client.PutObject(context.TODO(), &s3.PutObjectInput{
-		Bucket: aws.String(u.Bucket),
-		Key: aws.String(fileName),
-		Body: bytes.NewReader(buf.Bytes()),
-		ACL: "public-read",
-		ContentType: aws.String(fileHeade.Header.Get("Content-Type")),
+	uploader := s3manager.NewUploader(sess)
+	output, err := uploader.UploadWithContext(ctx, &s3manager.UploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(fileHeader.Filename),
+		Body:   file,
+		ACL:    aws.String("public-read"),
+		ContentType: aws.String(fileHeader.Header.Get("Content-Type")),
 	})
+
 	if err != nil {
 		return "", err
 	}
-	publicURL := fmt.Sprintf("%s/%s/%s", u.SpaceURL, u.Bucket, fileName)
-	return publicURL, nil
+	fmt.Println(output)
+	return output.Location, err
+}
+
+func UploadAsyncSave(file multipart.File, fileHeader *multipart.FileHeader, owner_id uint, uploadType string) error {
+	var img models.Images
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	access_key := os.Getenv("DIGITAL_OCEAN_ACCESS")
+	secret := os.Getenv("DIGITAL_OCEAN_SECRET")
+	bucket := os.Getenv("DIGITAL_OCEAN_BUCKET")
+	endpoint := os.Getenv("DIGITAL_OCEAN_ENDPOINT")
+	region := os.Getenv("DIGITAL_OCEAN_REGION")
+
+	if uploadType == "profile" {
+		endpoint = fmt.Sprintf("%s/profiles", endpoint)
+	} else {
+		endpoint = fmt.Sprintf("%s/items", endpoint)
+	}
+	defer cancel()
+	fileHeader.Filename = fmt.Sprintf("%d-%s", owner_id, fileHeader.Filename)
+	url, err := UploadFile(endpoint, region, bucket, access_key, secret, file, fileHeader,ctx)
+	if err != nil {
+		return err
+	}
+	if uploadType == "profile" {
+		//DO AN UPDATE HERE
+		if err := models.DB.Model(&models.User{}).
+		Where("uuid = ?", owner_id).
+		Update("profile_image", url).Error; err != nil {
+			return err
+		}
+	} else {
+		img = models.Images{
+			ImageUrl:  url,
+			UpdatedAt: time.Now(),
+			ItemID:    owner_id,
+		}
+		if err := models.DB.Create(&img).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
