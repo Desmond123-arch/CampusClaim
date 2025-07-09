@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - mongo
+  redis:
+    image: "redis:alpine"
+  mongo:
+    image: "mongo:latest"
+    restart: always
+  db:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: appsecret
+      POSTGRES_DB: campusclaim
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
