@@ -14,7 +14,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
-func UploadFile(endpoint, region, bucket, key, secret string, file multipart.File,fileHeader *multipart.FileHeader ,ctx context.Context) (string, error) {
+func UploadFile(file multipart.File,fileHeader *multipart.FileHeader ,ctx context.Context, uploadType string) (string, error) {
+	key := os.Getenv("DIGITAL_OCEAN_ACCESS")
+	secret := os.Getenv("DIGITAL_OCEAN_SECRET")
+	bucket := os.Getenv("DIGITAL_OCEAN_BUCKET")
+	endpoint := os.Getenv("DIGITAL_OCEAN_ENDPOINT")
+	region := os.Getenv("DIGITAL_OCEAN_REGION")
+
+	if uploadType == "profile" {
+		endpoint = fmt.Sprintf("%s/profiles", endpoint)
+	} else {
+		endpoint = fmt.Sprintf("%s/items", endpoint)
+	}
 	s3Config := &aws.Config{
 		Credentials: credentials.NewStaticCredentials(key, secret, ""),
 		Endpoint:    aws.String(endpoint),
@@ -41,32 +52,24 @@ func UploadFile(endpoint, region, bucket, key, secret string, file multipart.Fil
 	return output.Location, err
 }
 
-func UploadAsyncSave(file multipart.File, fileHeader *multipart.FileHeader, owner_id uint, uploadType string) error {
+func UploadAsyncSave(file multipart.File, fileHeader *multipart.FileHeader, owner_id uint, uploadType string) (string, error) {
 	var img models.Images
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	access_key := os.Getenv("DIGITAL_OCEAN_ACCESS")
-	secret := os.Getenv("DIGITAL_OCEAN_SECRET")
-	bucket := os.Getenv("DIGITAL_OCEAN_BUCKET")
-	endpoint := os.Getenv("DIGITAL_OCEAN_ENDPOINT")
-	region := os.Getenv("DIGITAL_OCEAN_REGION")
 
-	if uploadType == "profile" {
-		endpoint = fmt.Sprintf("%s/profiles", endpoint)
-	} else {
-		endpoint = fmt.Sprintf("%s/items", endpoint)
-	}
+
+
 	defer cancel()
 	fileHeader.Filename = fmt.Sprintf("%d-%s", owner_id, fileHeader.Filename)
-	url, err := UploadFile(endpoint, region, bucket, access_key, secret, file, fileHeader,ctx)
+	url, err := UploadFile(file, fileHeader,ctx, uploadType)
 	if err != nil {
-		return err
+		return "",err
 	}
 	if uploadType == "profile" {
 		//DO AN UPDATE HERE
 		if err := models.DB.Model(&models.User{}).
 		Where("uuid = ?", owner_id).
 		Update("profile_image", url).Error; err != nil {
-			return err
+			return "",err
 		}
 	} else {
 		img = models.Images{
@@ -75,8 +78,8 @@ func UploadAsyncSave(file multipart.File, fileHeader *multipart.FileHeader, owne
 			ItemID:    owner_id,
 		}
 		if err := models.DB.Create(&img).Error; err != nil {
-			return err
+			return "",err
 		}
 	}
-	return nil
+	return url, nil
 }

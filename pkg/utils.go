@@ -3,7 +3,9 @@ package pkg
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"text/template"
@@ -119,4 +121,27 @@ func SendResetEmail(email string, token string) {
 	}
 
 	fmt.Println("Email sent")
+}
+
+
+func SendImageURL(url string, description string) (map[string]interface{}, error) {
+	search_url := os.Getenv("SEARCH_ENDPOINT")
+	requestBody := map[string]string{
+		"image_url": url,
+		"text":      description,
+	}
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Post(search_url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil,err
+	}
+	defer resp.Body.Close()
+
+	var result map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	return result, nil
 }
