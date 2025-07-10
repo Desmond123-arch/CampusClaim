@@ -73,7 +73,7 @@ func UpdateProfilePicture(c *fiber.Ctx) error {
 
 	defer file.Close()
 	go func() {
-		if err := pkg.UploadAsyncSave(file, fileHeader,user.ID , "profile"); err != nil {
+		if _, err := pkg.UploadAsyncSave(file, fileHeader,user.ID , "profile"); err != nil {
 			log.Printf("Async upload failed: %v", err) 
 		}
 	}()
