@@ -9,13 +9,21 @@ services:
       - db
       - redis
       - mongo
+    networks:
+      - app-network
   search:
     build: ./simple_search
+    networks:
+      - app-network
   redis:
     image: "redis:alpine"
+    networks:
+      - app-network
   mongo:
     image: "mongo:latest"
     restart: always
+    networks:
+      - app-network
   db:
     image: postgres:latest
     restart: always
@@ -26,6 +34,8 @@ services:
     volumes:
       - ./init-scripts:/docker-entrypoint-initdb.d
       - .data:/var/lib/postgresql/data
+    networks:
+      - app-network
   nginx:
     image: staticfloat/nginx-certbot
     restart: always
@@ -37,3 +47,5 @@ services:
     environment:
       CERTBOT_EMAIL: desmondopokumends2004@gmail.com
       CERTBOT_DOMAIN: api.campusclaim.tech
+    networks:
+      - app-network
