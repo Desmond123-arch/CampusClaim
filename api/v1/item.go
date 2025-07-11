@@ -202,7 +202,12 @@ func AddItem(c *fiber.Ctx) error {
 			})
 		}
 		go func(file multipart.File) {
-			if _,err := pkg.UploadAsyncSave(file, fileHeader, item.ID, "item"); err != nil {
+			url, err := pkg.UploadAsyncSave(file, fileHeader, item.ID, "item")
+			if err != nil {
+				log.Printf("Async upload failed: %v", err)
+			}
+			_, err = pkg.SendAddImageURL(url, item.Description, "add") 
+			if err != nil {
 				log.Printf("Async upload failed: %v", err)
 			}
 		}(file)

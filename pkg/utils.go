@@ -123,20 +123,24 @@ func SendResetEmail(email string, token string) {
 	fmt.Println("Email sent")
 }
 
-
-func SendImageURL(url string, description string) (map[string]interface{}, error) {
-	search_url := os.Getenv("SEARCH_ENDPOINT")
+func SendAddImageURL(url, description, requestType string) (map[string]interface{}, error) {
+	var endpoint string
+	if requestType == "search" {
+		endpoint = os.Getenv("SEARCH_ENDPOINT")
+	} else {
+		endpoint = os.Getenv("ADD_ENDPOINT")
+	}
 	requestBody := map[string]string{
-		"image_url": url,
+		"image_url": endpoint,
 		"text":      description,
 	}
 	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	resp, err := http.Post(search_url, "application/json", bytes.NewBuffer(jsonData))
+	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
