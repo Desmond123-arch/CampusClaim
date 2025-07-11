@@ -27,9 +27,14 @@ services:
       - ./init-scripts:/docker-entrypoint-initdb.d
       - .data:/var/lib/postgresql/data
   nginx:
-    image: nginx:alpine
+    image: staticfloat/nginx-certbot
+    restart: always
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx:/etc/nginx/conf.d
+      - ./nginx:/etc/nginx/user_conf.d:ro
+    environment:
+      CERTBOT_EMAIL: desmondopokumends2004@gmail.com
+      CERTBOT_DOMAIN: api.campusclaim.tech
+
