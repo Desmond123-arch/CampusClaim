@@ -125,7 +125,7 @@ func LoginUser(c *fiber.Ctx) error {
 	cookie.SameSite = "Lax"
 	c.Cookie((*fiber.Cookie)(cookie))
 
-	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"status":      "success",
 		"user":        &dbUser,
 		"accessToken": accessToken,

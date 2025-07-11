@@ -135,7 +135,7 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Invalid Category",
 		})
 	}
-
+//TODO: Handle item status conversion
 	if err := models.DB.Where("item_statuses.status = ?", requestBody.Status).First(&item_status).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "Failed",

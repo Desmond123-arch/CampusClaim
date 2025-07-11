@@ -86,7 +86,6 @@ type Item struct {
 	Images      []Images    `gorm:"foreignKey:ItemID;references:ID"` // Assuming you want multiple images per item
 }
 
-
 func (i Item) MarshalJSON() ([]byte, error) {
 	// Collect image URLs
 	imageURLs := []string{}
@@ -117,18 +116,15 @@ func (i Item) MarshalJSON() ([]byte, error) {
 	})
 }
 
-
 type Images struct {
 	gorm.Model
-	ItemID    uint     `json:"item_id" gorm:"column:item_id"`
+	ItemID    uint      `json:"item_id" gorm:"column:item_id"`
 	ImageUrl  string    `json:"image_url" gorm:"column:image_url;not null"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at"`
 
 	// Avoid deep recursion by omitting Item or making it ignored by JSON
 	Item *Item `gorm:"foreignKey:ItemID;references:ID" json:"-"`
 }
-
-
 
 type Claims struct {
 	gorm.Model
