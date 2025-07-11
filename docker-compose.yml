@@ -11,8 +11,6 @@ services:
       - mongo
   search:
     build: ./simple_search
-    ports:
-      - "8000:8000"
   redis:
     image: "redis:alpine"
   mongo:
@@ -28,3 +26,9 @@ services:
     volumes:
       - ./init-scripts:/docker-entrypoint-initdb.d
       - .data:/var/lib/postgresql/data
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
