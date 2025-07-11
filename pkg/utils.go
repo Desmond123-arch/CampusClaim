@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	// "context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
@@ -123,29 +124,82 @@ func SendResetEmail(email string, token string) {
 	fmt.Println("Email sent")
 }
 
-func SendAddImageURL(url, description, requestType string) (map[string]interface{}, error) {
+
+// Client is a client for interacting with the image search API.
+type Client struct {
+	addEndpoint    string
+	searchEndpoint string
+	httpClient     *http.Client
+}
+
+// NewClient creates a new API client.
+func NewClient() (*Client, error) {
+	addEndpoint := os.Getenv("ADD_ENDPOINT")
+	if addEndpoint == "" {
+		return nil, fmt.Errorf("ADD_ENDPOINT environment variable not set")
+	}
+
+	searchEndpoint := os.Getenv("SEARCH_ENDPOINT")
+	if searchEndpoint == "" {
+		return nil, fmt.Errorf("SEARCH_ENDPOINT environment variable not set")
+	}
+
+	return &Client{
+		addEndpoint:    addEndpoint,
+		searchEndpoint: searchEndpoint,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second, // Set a reasonable timeout
+		},
+	}, nil
+}
+
+
+// It's still highly recommended to have a shared HTTP client with a timeout.
+// This prevents your function from hanging indefinitely on a network issue.
+// We can define it once at the package level.
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+}
+
+// Renamed for clarity, since it handles both add and search.
+func SendAddImageURL(imageURL, text, requestType string) (map[string]interface{}, error) {
 	var endpoint string
+	requestBody := make(map[string]string)
+
 	if requestType == "search" {
 		endpoint = os.Getenv("SEARCH_ENDPOINT")
-	} else {
+		requestBody["image_url"] = imageURL
+		requestBody["text"] = text
+	} else { // Default to "add"
 		endpoint = os.Getenv("ADD_ENDPOINT")
+		requestBody["image_url"] = imageURL  
+		requestBody["description"] = text
 	}
-	requestBody := map[string]string{
-		"image_url": endpoint,
-		"text":      description,
+	
+	if endpoint == "" {
+		return nil, fmt.Errorf("%s environment variable not set", requestType)
 	}
+
 	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create request JSON: %w", err)
 	}
-	resp, err := http.Post(endpoint, "application/json", bytes.NewBuffer(jsonData))
+
+	resp, err := httpClient.Post(endpoint, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("request to %s failed: %w", endpoint, err)
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("api returned an error: %s", resp.Status)
+	}
+
 	var result map[string]interface{}
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	}
 
 	return result, nil
 }
+

@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
@@ -48,14 +49,16 @@ func SearchByImage(c *fiber.Ctx) error {
 
 func SearchByDescription(c *fiber.Ctx) error {
 	description := c.FormValue("description")
+
 	if description == "" {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
 			"error":  "Description is required",
 		})
 	}
-
+	fmt.Println("Search by Text")
 	result, err := pkg.SendAddImageURL("", description, "search")
+	
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status": "false",
@@ -65,7 +68,7 @@ func SearchByDescription(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"result": result,
+		"result": result["results"],
 	})
 }
 
