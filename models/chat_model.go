@@ -10,12 +10,12 @@ import (
 )
 
 type Messages struct {
-	ID string`bson:"_id, omitempty" json:"id"`
-	Sender string `bson:"sender_id" json:"sender"`
-	Receiver string `bson:"receiver_id" json:"receiver"`
-	ChannelID  string `bson:"channel_id"`
-	Content string `bson:"content" json:"content"`
-	TimeStamp int64 `bson:"sent_at" json:"sent_at"`
+	ID        string `bson:"_id, omitempty" json:"id"`
+	Sender    string `bson:"sender_id" json:"sender"`
+	Receiver  string `bson:"receiver_id" json:"receiver"`
+	ChannelID string `bson:"channel_id"`
+	Content   string `bson:"content" json:"content"`
+	TimeStamp int64  `bson:"sent_at" json:"sent_at"`
 }
 
 type ChatChannel struct {
@@ -41,13 +41,13 @@ func MongoSetup(uri string) (*mongo.Client, error) {
 	err = client.Ping(ctx, nil)
 
 	if err != nil {
-        // Clean up if connection fails
-        _ = client.Disconnect(ctx)
-        return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
-    }
+		// Clean up if connection fails
+		_ = client.Disconnect(ctx)
+		return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
+	}
 	return client, nil
 }
 
 func GetCollection(name string) *mongo.Collection {
-	return  MDB.Database("Chats").Collection(name)
+	return MDB.Database("Chats").Collection(name)
 }
