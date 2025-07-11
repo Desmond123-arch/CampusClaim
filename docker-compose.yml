@@ -33,8 +33,7 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx:/etc/nginx/user_conf.d:ro
+      - ./nginx/user_conf.d:/etc/nginx/user_conf.d:ro
     environment:
       CERTBOT_EMAIL: desmondopokumends2004@gmail.com
       CERTBOT_DOMAIN: api.campusclaim.tech
-
