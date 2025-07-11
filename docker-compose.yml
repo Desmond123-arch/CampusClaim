@@ -9,10 +9,6 @@ services:
       - db
       - redis
       - mongo
-  search:
-    build: ./simple_search
-    ports:
-      - "8000:8000"
   redis:
     image: "redis:alpine"
   mongo:
