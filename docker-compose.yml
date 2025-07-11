@@ -11,19 +11,23 @@ services:
       - mongo
     networks:
       - app-network
+
   search:
     build: ./simple_search
     networks:
       - app-network
+
   redis:
     image: "redis:alpine"
     networks:
       - app-network
+
   mongo:
     image: "mongo:latest"
     restart: always
     networks:
       - app-network
+
   db:
     image: postgres:latest
     restart: always
@@ -36,6 +40,7 @@ services:
       - .data:/var/lib/postgresql/data
     networks:
       - app-network
+
   nginx:
     image: staticfloat/nginx-certbot
     restart: always
@@ -49,3 +54,6 @@ services:
       CERTBOT_DOMAIN: api.campusclaim.tech
     networks:
       - app-network
+
+networks:
+  app-network:
