@@ -33,7 +33,7 @@ func SearchByImage(c *fiber.Ctx) error {
 		})
 	}
 
-	result, err := pkg.SendAddImageURL(url, "", "search")
+	result, err := pkg.SendAddImageURL(url, "", "search", "")
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status": "false",
@@ -57,7 +57,7 @@ func SearchByDescription(c *fiber.Ctx) error {
 		})
 	}
 	fmt.Println("Search by Text")
-	result, err := pkg.SendAddImageURL("", description, "search")
+	result, err := pkg.SendAddImageURL("", description, "search", "")
 	
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
