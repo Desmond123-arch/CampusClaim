@@ -162,7 +162,7 @@ var httpClient = &http.Client{
 }
 
 // Renamed for clarity, since it handles both add and search.
-func SendAddImageURL(imageURL, text, requestType string) (map[string]interface{}, error) {
+func SendAddImageURL(imageURL, text, requestType, item_uuid string, ) (map[string]interface{}, error) {
 	var endpoint string
 	requestBody := make(map[string]string)
 
