@@ -173,6 +173,7 @@ func SendAddImageURL(imageURL, text, requestType, item_uuid string, ) (map[strin
 	} else { // Default to "add"
 		endpoint = os.Getenv("ADD_ENDPOINT")
 		requestBody["image_url"] = imageURL  
+		requestBody["item_id"] = item_uuid
 		requestBody["description"] = text
 	}
 	
