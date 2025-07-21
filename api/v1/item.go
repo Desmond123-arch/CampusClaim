@@ -206,7 +206,7 @@ func AddItem(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Async upload failed: %v", err)
 			}
-			_, err = pkg.SendAddImageURL(url, item.Description, "add") 
+			_, err = pkg.SendAddImageURL(url, item.Description, "add", item.UUID.String()) 
 			if err != nil {
 				log.Printf("Async upload failed: %v", err)
 			}

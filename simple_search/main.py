@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import torch
 import faiss
 from transformers import CLIPProcessor, CLIPModel
@@ -18,11 +18,18 @@ state = {
     "model": None,
     "processor": None,
     "index": None,
-    "metadata": []
+    ### MODIFIED: We now use two structures for metadata management.
+    # 1. A map from the internal FAISS index (integer) to your custom item_id (string)
+    "id_map": [],
+    # 2. A dictionary storing the actual metadata, keyed by your custom item_id
+    "metadata_store": {}
 }
 
+# --- MODIFIED: Paths for our new data structures ---
 INDEX_PATH = "index.faiss"
-META_PATH = "metadata.pkl"
+ID_MAP_PATH = "id_map.pkl"
+METADATA_STORE_PATH = "metadata_store.pkl"
+
 
 # --- FastAPI Lifespan Events ---
 @asynccontextmanager
@@ -40,18 +47,34 @@ async def lifespan(app: FastAPI):
         # 512 is the embedding dimension for clip-vit-base-patch32
         state["index"] = faiss.IndexFlatIP(512)
 
-    if os.path.exists(META_PATH):
-        with open(META_PATH, "rb") as f:
-            state["metadata"] = pickle.load(f)
+    # --- MODIFIED: Load the two new metadata files ---
+    if os.path.exists(ID_MAP_PATH):
+        with open(ID_MAP_PATH, "rb") as f:
+            state["id_map"] = pickle.load(f)
+            
+    if os.path.exists(METADATA_STORE_PATH):
+        with open(METADATA_STORE_PATH, "rb") as f:
+            state["metadata_store"] = pickle.load(f)
+
     print(f"Startup complete. Index contains {state['index'].ntotal} vectors.")
+    print(f"ID Map contains {len(state['id_map'])} entries.")
     
+    # Sanity check
+    if state['index'].ntotal != len(state['id_map']):
+        print("WARNING: FAISS index size and ID map size are out of sync!")
+
     yield
 
     # --- Shutdown ---
     print("Saving FAISS index and metadata...")
     faiss.write_index(state["index"], INDEX_PATH)
-    with open(META_PATH, "wb") as f:
-        pickle.dump(state["metadata"], f)
+    
+    # --- MODIFIED: Save the two new metadata files ---
+    with open(ID_MAP_PATH, "wb") as f:
+        pickle.dump(state["id_map"], f)
+    with open(METADATA_STORE_PATH, "wb") as f:
+        pickle.dump(state["metadata_store"], f)
+        
     print("Shutdown complete. Files saved.")
 
 
@@ -59,7 +82,7 @@ app = FastAPI(lifespan=lifespan)
 http_client = httpx.AsyncClient()
 
 
-# --- Helper Functions ---
+# --- Helper Functions (No changes needed here) ---
 async def download_and_process_image(url: str) -> Image.Image:
     """Asynchronously downloads and opens an image."""
     try:
@@ -95,29 +118,35 @@ async def get_embedding(image: Image.Image = None, text: str = None) -> torch.Te
     if len(embeddings) == 1:
         return embeddings[0]
     
-    # For multimodal queries, use weighted combination
-    # You can experiment with different weights
+    # For multimodal queries, you can experiment with weights
     image_weight = 0.6
     text_weight = 0.4
     
     if len(embeddings) == 2:
         combined = image_weight * embeddings[0] + text_weight * embeddings[1]
-        # Normalize the combined embedding
         combined = combined / combined.norm(p=2, dim=-1, keepdim=True)
         return combined
     
-    # Fallback to average (though this shouldn't happen with current logic)
     combined = torch.stack(embeddings).mean(dim=0)
     return combined / combined.norm(p=2, dim=-1, keepdim=True)
 
 
 # --- API Endpoints ---
+# --- MODIFIED: Add 'item_id' to the AddItem model ---
 class AddItem(BaseModel):
+    item_id: str = Field(..., description="Unique identifier for the item.")
     image_url: str
     description: str = ""
 
 @app.post("/add")
 async def add_item(item: AddItem):
+    # --- MODIFIED: Check for duplicate item_id ---
+    if item.item_id in state["metadata_store"]:
+        raise HTTPException(
+            status_code=409,  # 409 Conflict is more appropriate
+            detail=f"Item with id '{item.item_id}' already exists."
+        )
+
     image = await download_and_process_image(item.image_url)
     
     # Store both image-only and multimodal embeddings for better search
@@ -129,21 +158,29 @@ async def add_item(item: AddItem):
     if embedding is None:
         raise HTTPException(status_code=400, detail="Failed to generate embedding")
     
-    # Convert to numpy and ensure it's the right shape
     embedding_np = embedding.cpu().numpy().astype('float32')
     if embedding_np.ndim == 2:
-        embedding_np = embedding_np[0]  # Remove batch dimension
+        embedding_np = embedding_np[0]
     
-    # Add to index
+    # --- MODIFIED: Add to index and update our new metadata structures ---
+    # 1. Add vector to FAISS index
     state["index"].add(embedding_np.reshape(1, -1))
-    state["metadata"].append({
+    
+    # 2. Add the new item_id to our id_map. The list index will match the FAISS index.
+    state["id_map"].append(item.item_id)
+    
+    # 3. Add the item's metadata to our metadata_store, keyed by its ID.
+    state["metadata_store"][item.item_id] = {
         "image_url": item.image_url, 
         "description": item.description
-    })
+    }
+    
+    # Sanity check
+    assert state["index"].ntotal == len(state["id_map"]), "CRITICAL: Index and ID map are out of sync!"
 
     return {
-        "message": f"Item added successfully. Index now contains {state['index'].ntotal} items.",
-        "embedding_norm": float(np.linalg.norm(embedding_np))  # Should be ~1.0
+        "message": f"Item '{item.item_id}' added successfully. Index now contains {state['index'].ntotal} items.",
+        "embedding_norm": float(np.linalg.norm(embedding_np))
     }
 
 
@@ -165,47 +202,56 @@ async def search(query: SearchQuery):
     if embedding is None:
         raise HTTPException(status_code=400, detail="Failed to generate query embedding")
     
-    # Convert to numpy
     embedding_np = embedding.cpu().numpy().astype('float32')
     if embedding_np.ndim == 2:
-        embedding_np = embedding_np[0]  # Remove batch dimension
+        embedding_np = embedding_np[0]
     
-    # Search with more results to get better ranking
-    k = min(10, state["index"].ntotal)  # Don't search for more items than we have
+    k = min(10, state["index"].ntotal)
     if k == 0:
-        return {"results": [], "scores": []}
+        return {"results": []}
     
     D, I = state["index"].search(embedding_np.reshape(1, -1), k)
     
-    # Filter out invalid indices and create results
+    # --- MODIFIED: Use the id_map to retrieve results ---
     results = []
-    scores = []
     for i, score in zip(I[0], D[0]):
-        if i < len(state["metadata"]):  # Valid index
-            results.append(state["metadata"][i])
-            scores.append(float(score))
+        if i < 0: # FAISS can return -1 for invalid indices
+            continue
+        
+        # 1. Get the custom item_id from our map using the FAISS index
+        item_id = state["id_map"][i]
+        
+        # 2. Get the metadata from our store using the custom item_id
+        metadata = state["metadata_store"][item_id]
+        
+        # 3. Combine them for the final result
+        results.append({
+            "item_id": item_id,
+            "score": float(score),
+            "image_url": metadata["image_url"],
+            "description": metadata["description"]
+        })
     
-    # Sort by score (descending - higher is better for IndexFlatIP)
-    sorted_pairs = sorted(zip(results, scores), key=lambda x: x[1], reverse=True)
-    results, scores = zip(*sorted_pairs) if sorted_pairs else ([], [])
+    # The results are already sorted by FAISS (for L2 distance). For IP (cosine sim), higher is better.
+    # We don't need to re-sort here as FAISS returns them in the correct order.
     
     return {
-        "results": list(results)[:5],  # Return top 5
-        "scores": list(scores)[:5],
-        "query_embedding_norm": float(np.linalg.norm(embedding_np)),
-        "total_items": state["index"].ntotal
+        "results": results[:5], # Return top 5
+        "total_items_in_index": state["index"].ntotal
     }
 
-# Add a debug endpoint to check index health
+# --- MODIFIED: Update debug endpoint to show new stats ---
 @app.get("/debug/index_stats")
 async def index_stats():
     if state["index"] is None:
         return {"error": "Index not initialized"}
     
     return {
-        "total_items": state["index"].ntotal,
+        "faiss_index_items": state["index"].ntotal,
+        "id_map_items": len(state["id_map"]),
+        "metadata_store_items": len(state["metadata_store"]),
+        "is_synced": state["index"].ntotal == len(state["id_map"]),
         "index_dimension": state["index"].d,
         "index_type": type(state["index"]).__name__,
-        "metadata_count": len(state["metadata"]),
         "device": state["device"]
     }
