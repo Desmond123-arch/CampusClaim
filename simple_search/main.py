@@ -146,7 +146,7 @@ async def add_item(item: AddItem):
             status_code=409,  # 409 Conflict is more appropriate
             detail=f"Item with id '{item.item_id}' already exists."
         )
-
+    print(item)
     image = await download_and_process_image(item.image_url)
     
     # Store both image-only and multimodal embeddings for better search
