@@ -75,10 +75,10 @@ type Item struct {
 	Title       string    `json:"title" gorm:"size:1000;column:title;not null" validate:"required"`
 	Description string    `json:"description" gorm:"size:65535;column:description" validate:"required"`
 	Bounty      uint      `json:"bounty" gorm:"column:bounty;default:0" validate:"required,numeric"`
-
-	UserID     uint `gorm:"column:posted_by"`
-	StatusID   uint `gorm:"column:status_id"`
-	CategoryID uint `gorm:"column:category_id"`
+	Found_At    string    `json:"found_At" gorm:"column:found_at" validate:"required"`
+	UserID      uint      `gorm:"column:posted_by"`
+	StatusID    uint      `gorm:"column:status_id"`
+	CategoryID  uint      `gorm:"column:category_id"`
 
 	User        User        `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
 	Item_Status Item_Status `gorm:"foreignKey:StatusID;references:ID"`
@@ -103,6 +103,7 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		PostedBy    string    `json:"posted_by"`
 		CreatedAt   time.Time `json:"created_at"`
 		ImageUrls   []string  `json:"image_urls"`
+		Found_At string `json:"found_at"`
 	}{
 		UUID:        i.UUID,
 		Title:       i.Title,
@@ -113,6 +114,7 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		PostedBy:    i.User.FullName,
 		CreatedAt:   i.CreatedAt,
 		ImageUrls:   imageURLs,
+		Found_At: i.Found_At,
 	})
 }
 
