@@ -94,6 +94,7 @@ func AddItem(c *fiber.Ctx) error {
 		Title       string `json:"title" validate:"required"`
 		Description string `json:"description" validate:"required"`
 		Bounty      uint   `json:"bounty" validate:"required,numeric"`
+		Found_At    string `json:"found_at" validate:"required"`
 		Category    string `json:"category" validate:"required"`
 		Status      string `json:"status" validate:"required"`
 	}
@@ -123,6 +124,7 @@ func AddItem(c *fiber.Ctx) error {
 		Bounty:      uint(bounty),
 		Category:    c.FormValue("category"),
 		Status:      c.FormValue("status"),
+		Found_At:    c.FormValue("found_at"),
 	}
 
 	errs := pkg.GeneralValidator().Validate(requestBody)
@@ -135,7 +137,7 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Invalid Category",
 		})
 	}
-//TODO: Handle item status conversion
+	//TODO: Handle item status conversion
 	if err := models.DB.Where("item_statuses.status = ?", requestBody.Status).First(&item_status).Error; err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "Failed",
@@ -185,6 +187,7 @@ func AddItem(c *fiber.Ctx) error {
 		User:        user,
 		Item_Status: item_status,
 		Categories:  categories,
+		Found_At:    requestBody.Found_At,
 	}
 	if err := models.DB.Create(&item).Error; err != nil {
 		fmt.Println(err)
@@ -206,7 +209,7 @@ func AddItem(c *fiber.Ctx) error {
 			if err != nil {
 				log.Printf("Async upload failed: %v", err)
 			}
-			_, err = pkg.SendAddImageURL(url, item.Description, "add", item.UUID.String()) 
+			_, err = pkg.SendAddImageURL(url, item.Description, "add", item.UUID.String())
 			if err != nil {
 				log.Printf("Async upload failed: %v", err)
 			}
@@ -220,6 +223,7 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Failed to fetch item details",
 		})
 	}
+	fmt.Print(item)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success",
 		"item":   &item,
