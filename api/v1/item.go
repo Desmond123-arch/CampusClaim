@@ -50,6 +50,7 @@ func GetMyItems(c *fiber.Ctx) error {
 	var items []models.Item
 	uid := c.Locals("id")
 	status := c.Query("status")
+	location:= c.Query("location", "")
 	pagination := pkg.Pagination{
 		Page:  c.QueryInt("page", 1),
 		Limit: c.QueryInt("limit", 20),
@@ -62,6 +63,7 @@ func GetMyItems(c *fiber.Ctx) error {
 		Preload("Images").
 		Joins("JOIN item_statuses ON item_statuses.id = items.status_id").
 		Where(" item_statuses.status= ?", status).
+		Where("LOWER(items.found_at) LIKE ?", "%"+strings.ToLower(location)+"%").
 		Where(" item_statuses.user.uuid = ?", uid).Find(&items)
 	pagination.Rows = items
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
@@ -223,7 +225,7 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Failed to fetch item details",
 		})
 	}
-	fmt.Print(item)
+	// fmt.Print(item)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success",
 		"item":   &item,
