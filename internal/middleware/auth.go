@@ -30,16 +30,21 @@ func AuthenticateMiddleware(c *fiber.Ctx) error {
 	if len(c.GetReqHeaders()["Authorization"]) == 0 {
 		return c.Status(400).JSON(fiber.Map{"status": "failed", "messages": "Invalid request Headers"})
 	}
-	tokenString := strings.ReplaceAll(c.GetReqHeaders()["Authorization"][0], "Bearer ", "")
 
+	// fmt.Println(c.GetReqHeaders()["Authorization"])
+	tokenString := strings.ReplaceAll(c.GetReqHeaders()["Authorization"][0], "Bearer ", "")
 	if tokenString == "" {
 		c.Redirect("/login", fiber.StatusSeeOther)
-		return fmt.Errorf("token is Required")
+		fmt.Errorf("token is Required")
+		//FIXME: log the rrors
 	}
 	token, err := auth.VerifyToken(tokenString)
+
 	if err != nil {
 		c.Redirect("/login", fiber.StatusSeeOther)
-		return err
+		//FIXME: Actually log the errors
+		 fmt.Println(err)
+
 	}
 	userid, _ := token.Claims.(jwt.MapClaims).GetSubject()
 	c.Locals("userID", userid)

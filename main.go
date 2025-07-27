@@ -68,14 +68,14 @@ func main() {
 	profileRoutes.Delete("", middleware.AuthenticateMiddleware, v1.DeleteProfile)
 
 	//ITEMS_ROUTES
+	itemsRoutes.Get("/my-items", middleware.AuthenticateMiddleware, v1.GetMyItems)
+	itemsRoutes.Post("/search/image", middleware.AuthenticateMiddleware, v1.SearchByImage)
+	itemsRoutes.Post("/search/text", middleware.AuthenticateMiddleware, v1.SearchByDescription)
 	itemsRoutes.Get("", v1.GetItems)
 	itemsRoutes.Get("/:id", v1.GetItem)
-	itemsRoutes.Get("/my-items", middleware.AuthenticateMiddleware, v1.GetMyItems)
 	itemsRoutes.Post("", middleware.AuthenticateMiddleware, v1.AddItem)
 	itemsRoutes.Delete("/:id", middleware.AuthenticateMiddleware, v1.DeleteItem)
 	itemsRoutes.Put("/:id", middleware.AuthenticateMiddleware, v1.UpdateItem)
-	itemsRoutes.Post("/search/image", middleware.AuthenticateMiddleware, v1.SearchByImage)
-	itemsRoutes.Post("/search/text", middleware.AuthenticateMiddleware, v1.SearchByDescription)
 
 	//CLAIM_ROUTES
 	claimRoutes.Get("/:id", middleware.AuthenticateMiddleware, v1.GetItemCliams)
