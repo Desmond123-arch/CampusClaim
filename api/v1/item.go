@@ -50,7 +50,7 @@ func GetItems(c *fiber.Ctx) error {
 }
 func GetMyItems(c *fiber.Ctx) error {
 	var items []models.Item
-	uid := c.Locals("id")
+	uid := c.Locals("userID").(string)
 	status := c.Query("status", "")
 	location := c.Query("location", "")
 	pagination := pkg.Pagination{
@@ -64,9 +64,16 @@ func GetMyItems(c *fiber.Ctx) error {
 		Preload("Categories").
 		Preload("Images").
 		Joins("JOIN item_statuses ON item_statuses.id = items.status_id").
-		Where(" item_statuses.status= ?", status).
-		Where("LOWER(items.found_at) LIKE ?", "%"+strings.ToLower(location)+"%").
-		Where(" item_statuses.user.uuid = ?", uid).Find(&items)
+		Joins("JOIN users ON users.id = items.posted_by").
+		Where("users.uuid = ?", uid)
+	if status != "" {
+		result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
+	}
+	if location != "" {
+		result.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%").Find(&items)
+	} else {
+		result.Find(&items)
+	}
 	pagination.Rows = items
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
@@ -76,6 +83,7 @@ func GetMyItems(c *fiber.Ctx) error {
 }
 func GetItem(c *fiber.Ctx) error {
 	uuid := c.Params("id")
+	fmt.Println(uuid)
 	var item models.Item
 	result := models.DB.Preload("User").Preload("Item_Status").Preload("Categories").Preload("Images").
 		Joins("JOIN categories ON categories.id = items.category_id").Where("item_uuid = ?", uuid).First(&item)
@@ -84,6 +92,11 @@ func GetItem(c *fiber.Ctx) error {
 			"status": "false",
 			"count":  0,
 			"errors": "Item not found",
+		})
+	} else if result.Error != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status": "false",
+			"errors": "Internal Server Error",
 		})
 	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
