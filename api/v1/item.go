@@ -140,7 +140,7 @@ func AddItem(c *fiber.Ctx) error {
 		Description: c.FormValue("description"),
 		Bounty:      uint(bounty),
 		Category:    c.FormValue("category"),
-		Status:      c.FormValue("status"),
+		Status:      strings.ToUpper(c.FormValue("status")),
 		Found_At:    c.FormValue("found_at"),
 	}
 
