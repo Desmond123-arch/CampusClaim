@@ -143,7 +143,6 @@ func AddItem(c *fiber.Ctx) error {
 		Status:      strings.ToUpper(c.FormValue("status")),
 		Found_At:    c.FormValue("found_at"),
 	}
-
 	errs := pkg.GeneralValidator().Validate(requestBody)
 	if len(errs) != 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
