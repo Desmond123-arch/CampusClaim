@@ -20,6 +20,8 @@ import (
 
 func GetItems(c *fiber.Ctx) error {
 	var items []models.Item
+	var total int64
+
 	status := c.Query("status", "")
 	location := c.Query("location", "")
 	pagination := pkg.Pagination{
@@ -33,23 +35,34 @@ func GetItems(c *fiber.Ctx) error {
 		Preload("Categories").
 		Preload("Images").
 		Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
+	countQuery := models.DB.
+    Model(&models.Item{}).
+    Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	if status != "" {
-		result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
+		result = result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
+		countQuery = countQuery.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
 	}
 	if location != "" {
-		result.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%").Find(&items)
+		result = result.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%").Find(&items)
+		countQuery = countQuery.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%")
 	} else {
 		result.Find(&items)
 	}
+	countQuery.Count(&total)
+
+
 	pagination.Rows = items
+	pagination.TotalRows = total
+
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"count":  len(items),
+		"count":  result.RowsAffected,
 		"data":   pagination,
 	})
 }
 func GetMyItems(c *fiber.Ctx) error {
 	var items []models.Item
+	var total int64
 	uid := c.Locals("userID").(string)
 	status := c.Query("status", "")
 	location := c.Query("location", "")
@@ -57,6 +70,9 @@ func GetMyItems(c *fiber.Ctx) error {
 		Page:  c.QueryInt("page", 1),
 		Limit: c.QueryInt("limit", 20),
 	}
+	countQuery := models.DB.
+    Model(&models.Item{}).
+    Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	result := models.DB.
 		Scopes(pkg.Pagainate(items, &pagination, models.DB)).
 		Preload("User").
@@ -68,22 +84,26 @@ func GetMyItems(c *fiber.Ctx) error {
 		Where("users.uuid = ?", uid)
 	if status != "" {
 		result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
+		countQuery = countQuery.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
 	}
 	if location != "" {
 		result.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%").Find(&items)
+		countQuery = countQuery.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%")
 	} else {
 		result.Find(&items)
 	}
+	countQuery.Count(&total)
 	pagination.Rows = items
+	pagination.TotalRows = total
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"count":  len(items),
+		"count":  result.RowsAffected,
 		"data":   pagination,
 	})
 }
 func GetItem(c *fiber.Ctx) error {
 	uuid := c.Params("id")
-	fmt.Println(uuid)
+
 	var item models.Item
 	result := models.DB.Preload("User").Preload("Item_Status").Preload("Categories").Preload("Images").
 		Joins("JOIN categories ON categories.id = items.category_id").Where("item_uuid = ?", uuid).First(&item)
