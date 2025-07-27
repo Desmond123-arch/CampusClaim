@@ -44,7 +44,7 @@ func GetItems(c *fiber.Ctx) error {
 	pagination.Rows = items
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"count":  result.RowsAffected,
+		"count":  len(items),
 		"data":   pagination,
 	})
 }
@@ -77,7 +77,7 @@ func GetMyItems(c *fiber.Ctx) error {
 	pagination.Rows = items
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"count":  result.RowsAffected,
+		"count":  len(items),
 		"data":   pagination,
 	})
 }
