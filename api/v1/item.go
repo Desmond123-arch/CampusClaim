@@ -21,7 +21,7 @@ import (
 func GetItems(c *fiber.Ctx) error {
 	var items []models.Item
 	status := c.Query("status", "")
-
+	location := c.Query("location", "")
 	pagination := pkg.Pagination{
 		Page:  c.QueryInt("page", 1),
 		Limit: c.QueryInt("limit", 20),
@@ -34,8 +34,10 @@ func GetItems(c *fiber.Ctx) error {
 		Preload("Images").
 		Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	if status != "" {
-		status = strings.ToUpper(string(status[0])) + strings.ToLower(status[1:])
-		result.Where(" item_statuses.status = ?", status).Find(&items)
+		result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
+	}
+	if location != "" {
+		result.Where("items.found_at ILIKE ?", "%"+strings.ToLower(location)+"%").Find(&items)
 	} else {
 		result.Find(&items)
 	}
@@ -49,8 +51,8 @@ func GetItems(c *fiber.Ctx) error {
 func GetMyItems(c *fiber.Ctx) error {
 	var items []models.Item
 	uid := c.Locals("id")
-	status := c.Query("status")
-	location:= c.Query("location", "")
+	status := c.Query("status", "")
+	location := c.Query("location", "")
 	pagination := pkg.Pagination{
 		Page:  c.QueryInt("page", 1),
 		Limit: c.QueryInt("limit", 20),
