@@ -51,8 +51,8 @@ func VerifyRateLimiter(c *fiber.Ctx) error {
 	ctx := context.Background()
 	SetupRedisRateLimiter()
 	res, err := rateLimiter.Allow(ctx, c.IP(), redisrate.Limit{
-		Rate:   1,
-		Burst:  1,
+		Rate:   5,
+		Burst:  5,
 		Period: time.Second * 30,
 	})
 	if err != nil {
