@@ -33,7 +33,7 @@ func VerifyHash(password string, hashstring string) bool {
 const otpChars = "1234567890"
 
 func GenerateOTP() (string, error) {
-	length := 6
+	length := 4
 	buffer := make([]byte, length)
 	_, err := rand.Read(buffer)
 	if err != nil {
