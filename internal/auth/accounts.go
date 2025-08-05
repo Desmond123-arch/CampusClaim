@@ -46,7 +46,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	}
 	verifier := new(models.EmailVerification)
 	verifier.Code, _ = pkg.GenerateOTP()
-	verifier.ExpiresAt = time.Now().Add(30 * time.Second)
+	verifier.ExpiresAt = time.Now().Add(3 * time.Minute)
 	verifier.UserID = user.ID
 
 	result = models.DB.Where("user_id = ?", user.ID).Assign(verifier).FirstOrCreate(&verifier)
@@ -174,26 +174,26 @@ func GetNewRefreshToken(c *fiber.Ctx) error {
 
 func VerifyAccount(c *fiber.Ctx) error {
 	type OTPRequest struct {
-		Code string `json:"code" validate:"required,len=6"`
+		Code string `json:"code" validate:"required,len=4"`
 	}
 	otprequest := new(OTPRequest)
 	if err := c.BodyParser(&otprequest); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Invalid request body"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"errors": "Invalid request body", "success": "false"})
 	}
 
 	errs := pkg.GeneralValidator().Validate(otprequest)
 	if len(errs) != 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
 	}
-	token := c.GetReqHeaders()["Authorization"][0]
-	token = strings.ReplaceAll(token, "Bearer ", "")
-	verfiedtoken, err := VerifyToken(token)
+	// token := c.GetReqHeaders()["Authorization"][0]
+	// token = strings.ReplaceAll(token, "Bearer ", "")
+	// verfiedtoken, err := VerifyToken(token)
 
-	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
-	}
+	// if err != nil {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	// }
 
-	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
+	userid := c.Locals("userID").(string)
 	var user models.User
 	result := models.DB.Where("uuid = ? ", userid).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -204,6 +204,7 @@ func VerifyAccount(c *fiber.Ctx) error {
 	}
 	verifier := new(models.EmailVerification)
 	models.DB.Where("user_id = ?", user.ID).First(&verifier)
+	fmt.Println(verifier.Code, otprequest.Code, user.ID)
 	if time.Now().After(verifier.ExpiresAt) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status": "Failed",
@@ -212,7 +213,7 @@ func VerifyAccount(c *fiber.Ctx) error {
 	}
 
 	if verifier.Code != otprequest.Code {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid token"})
 	}
 
 	models.DB.Model(&user).Update("is_verified", true)

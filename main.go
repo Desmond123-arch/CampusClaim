@@ -4,6 +4,7 @@ import (
 	// "context"
 	"context"
 	"log"
+	"os"
 
 	// "time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/websocket/v2"
 	"github.com/lpernett/godotenv"
@@ -25,10 +27,10 @@ import (
 var DB *gorm.DB
 
 func init() {
-    err := godotenv.Load()
-    if err != nil {
-        log.Println("No .env file found, relying on environment variables")
-    }
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found, relying on environment variables")
+	}
 }
 
 func main() {
@@ -48,6 +50,12 @@ func main() {
 	// app.Use(middleware.AuthenticateMiddleware)
 	app.Use(logger.New())
 
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Content-Type, Authorization",
+	}))
+
 	authRoutes := app.Group("/auth")
 	profileRoutes := app.Group("/profile")
 	itemsRoutes := app.Group("/items")
@@ -55,7 +63,7 @@ func main() {
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
-	authRoutes.Post("/verify-account", middleware.VerifyRateLimiter, auth.VerifyAccount)
+	authRoutes.Post("/verify-account", middleware.AuthenticateMiddleware, middleware.VerifyRateLimiter ,auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 
 	authRoutes.Put("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
@@ -89,7 +97,7 @@ func main() {
 		middleware.AuthenticateMiddleware,
 		chat.WebSocketUpgradeMiddleware(),
 		websocket.New(chat.HandleWebSocket),
-	  )
+	)
 	app.Listen(":3000")
 
 }
