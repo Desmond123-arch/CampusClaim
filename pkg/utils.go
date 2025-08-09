@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"bytes"
+	"context"
 	// "context"
 	"crypto/rand"
 	"encoding/json"
@@ -13,8 +14,9 @@ import (
 	"time"
 
 	"github.com/Desmond123-arch/CampusClaim/models"
+
+	brevo "github.com/getbrevo/brevo-go/lib"
 	"golang.org/x/crypto/bcrypt"
-	"gopkg.in/gomail.v2"
 )
 
 func HashPassword(password string) (string, error) {
@@ -48,6 +50,24 @@ func GenerateOTP() (string, error) {
 	return string(buffer), nil
 }
 
+func setupEmail()  (*brevo.APIClient, error) {
+	//email config setup
+	brevoApiKey := os.Getenv("BREVO_KEY")
+
+	var ctx context.Context
+	cfg := brevo.NewConfiguration()
+	cfg.AddDefaultHeader("api-key", brevoApiKey)
+	cfg.AddDefaultHeader("partner-key", brevoApiKey)
+
+	br := brevo.NewAPIClient(cfg)
+	_, _, err := br.AccountApi.GetAccount(ctx)
+	if err != nil {
+		fmt.Println("Error when calling AccountApi->get_account: ", err.Error())
+		return nil,err
+	}
+	return br,nil
+}
+
 // one for password resets, one for verfication
 func SendVerficationEmail(email string, name string, verfier *models.EmailVerification) {
 	type EmailData struct {
@@ -55,17 +75,12 @@ func SendVerficationEmail(email string, name string, verfier *models.EmailVerifi
 		Code    string
 		Expires string
 	}
-	password := os.Getenv("GMAIL_PASSWORD")
-	m := gomail.NewMessage()
-	m.SetHeader("From", "campusclaimumat@gmail.com")
-	m.SetHeader("To", email)
-	m.SetHeader("Subject", "Verify your account")
 	templ, err := template.ParseFiles("pkg/templates/VerifyAccount.html")
 	if err != nil {
 		panic(err)
 	}
 	var renderedHTML bytes.Buffer
-	exipres_in := verfier.ExpiresAt.Sub(time.Now()).Seconds()
+	exipres_in := time.Until(verfier.ExpiresAt).Seconds()
 	data := EmailData{
 		Name:    name,
 		Code:    verfier.Code,
@@ -77,51 +92,71 @@ func SendVerficationEmail(email string, name string, verfier *models.EmailVerifi
 	if err != nil {
 		fmt.Println(err.Error())
 	}
+	apiInstance, err := setupEmail()
 
-	m.SetBody("text/html", renderedHTML.String())
-
-	d := gomail.NewDialer("smtp.gmail.com", 465, "campusclaimumat@gmail.com", password)
-
-	if err := d.DialAndSend(m); err != nil {
-		panic(err)
+	if err != nil {
+		fmt.Println(err.Error())
 	}
 
-	fmt.Println("Email sent")
+	details := brevo.SendSmtpEmail{
+		Sender: &brevo.SendSmtpEmailSender{
+			Name:  "CampusClaim",
+			Email: "no-reply@campusclaim.tech",
+		},
+		To: []brevo.SendSmtpEmailTo{
+			{Name: "CampusClaim", Email: email},
+		},
+		Subject:     "Verify your account",
+		HtmlContent: renderedHTML.String(),
+	}
+	var ctx context.Context
+	apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details)
 }
 
 func SendResetEmail(email string, token string) {
 	type EmailData struct {
 		Url string
 	}
-	password := os.Getenv("GMAIL_PASSWORD")
-	m := gomail.NewMessage()
-	m.SetHeader("From", "campusclaimumat@gmail.com")
-	m.SetHeader("To", email)
-	m.SetHeader("Subject", "Reset Password")
-	templ, err := template.ParseFiles("pkg/templates/ResetPassword.html")
-	if err != nil {
-		panic(err)
-	}
+
 	var renderedHTML bytes.Buffer
 	data := EmailData{
 		Url: fmt.Sprintf("https://campusclaim.com/reset-password?token=%s", token),
+	}
+	templ, err := template.ParseFiles("pkg/templates/ResetPassword.html")
+	
+	if err != nil {
+		fmt.Println(err)
 	}
 
 	err = templ.Execute(&renderedHTML, data)
 
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println(err)
 	}
 
-	m.SetBody("text/html", renderedHTML.String())
+	apiInstance, err := setupEmail()
 
-	d := gomail.NewDialer("smtp.gmail.com", 465, "campusclaimumat@gmail.com", password)
-
-	if err := d.DialAndSend(m); err != nil {
-		panic(err)
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	fmt.Println("Email sent")
+	details := brevo.SendSmtpEmail{
+		Sender: &brevo.SendSmtpEmailSender{
+			Name:  "CampusClaim",
+			Email: "no-reply@campusclaim.tech",
+		},
+		To: []brevo.SendSmtpEmailTo{
+			{Name: "CampusClaim", Email: email},
+		},
+		Subject:     "Change Account Password",
+		HtmlContent: renderedHTML.String(),
+	}
+	var ctx context.Context
+	_, _, err = apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details)
+	if (err != nil) {
+		fmt.Println(err)
+	}
+	fmt.Println("Reset Email sent")
 }
 
 
@@ -153,7 +188,6 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
-
 // It's still highly recommended to have a shared HTTP client with a timeout.
 // This prevents your function from hanging indefinitely on a network issue.
 // We can define it once at the package level.
@@ -162,7 +196,7 @@ var httpClient = &http.Client{
 }
 
 // Renamed for clarity, since it handles both add and search.
-func SendAddImageURL(imageURL, text, requestType, item_uuid string, ) (map[string]interface{}, error) {
+func SendAddImageURL(imageURL, text, requestType, item_uuid string) (map[string]interface{}, error) {
 	var endpoint string
 	requestBody := make(map[string]string)
 
@@ -172,11 +206,11 @@ func SendAddImageURL(imageURL, text, requestType, item_uuid string, ) (map[strin
 		requestBody["text"] = text
 	} else { // Default to "add"
 		endpoint = os.Getenv("ADD_ENDPOINT")
-		requestBody["image_url"] = imageURL  
+		requestBody["image_url"] = imageURL
 		requestBody["item_id"] = item_uuid
 		requestBody["description"] = text
 	}
-	
+
 	if endpoint == "" {
 		return nil, fmt.Errorf("%s environment variable not set", requestType)
 	}
@@ -203,4 +237,3 @@ func SendAddImageURL(imageURL, text, requestType, item_uuid string, ) (map[strin
 
 	return result, nil
 }
-

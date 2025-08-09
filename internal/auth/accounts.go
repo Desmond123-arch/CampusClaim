@@ -266,7 +266,7 @@ func RequestPasswordreset(c *fiber.Ctx) error {
 	rand.Read(b)
 	newToken := fmt.Sprintf("%x", b)
 	result = models.DB.Model(&user).Update("password_token", newToken)
-	fmt.Println(result)
+	// fmt.Println(resul)
 	if result.RowsAffected == 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
 	}
