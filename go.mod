@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/aws/aws-sdk-go v1.55.7
+	github.com/getbrevo/brevo-go v1.1.3
 	github.com/go-playground/validator/v10 v10.26.0
 	github.com/go-redis/redis_rate/v10 v10.0.1
 	github.com/gofiber/fiber/v2 v2.52.8
@@ -16,6 +17,7 @@ require (
 )
 
 require (
+	github.com/antihax/optional v1.0.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fasthttp/websocket v1.5.12 // indirect
@@ -37,6 +39,7 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	golang.org/x/net v0.41.0 // indirect
+	golang.org/x/oauth2 v0.21.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 )
 
