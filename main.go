@@ -13,7 +13,6 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/internal/chat"
 	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
 
-
 	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
@@ -36,8 +35,6 @@ func init() {
 
 func main() {
 
-
-
 	models.Init()
 	defer models.MDB.Disconnect(context.Background())
 	app := fiber.New(fiber.Config{
@@ -56,7 +53,7 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders: "Content-Type, Authorization",
+		AllowHeaders: "Content-Type, Authorization, enctype",
 	}))
 
 	authRoutes := app.Group("/auth")
@@ -66,7 +63,7 @@ func main() {
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
-	authRoutes.Post("/verify-account", middleware.AuthenticateMiddleware, middleware.VerifyRateLimiter ,auth.VerifyAccount)
+	authRoutes.Post("/verify-account", middleware.AuthenticateMiddleware, middleware.VerifyRateLimiter, auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 
 	authRoutes.Put("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
