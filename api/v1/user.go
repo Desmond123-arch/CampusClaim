@@ -25,16 +25,18 @@ func UpdateProfile(c *fiber.Ctx) error {
 		fmt.Println(err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request", "errors": "Invalid request body"})
 	}
-	isValid,_ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
-	if !isValid {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect student email"})
-	}
+
 	var user models.User
 	result := models.DB.Where("uuid = ?", userid).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return c.Status(404).JSON(fiber.Map{"status": "Failed", "messages": "User not found"})
 	}
+	
 	if updatedUser.Email != "" {
+		isValid,_ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
+		if !isValid {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect student email"})
+		}
 		user.Email = updatedUser.Email
 	}
 	if updatedUser.Name != "" {
