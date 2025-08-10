@@ -130,7 +130,7 @@ func AddItem(c *fiber.Ctx) error {
 	type CreateItemRequest struct {
 		Title       string `json:"title" validate:"required"`
 		Description string `json:"description" validate:"required"`
-		Bounty      uint   `json:"bounty" validate:"required,numeric"`
+		Bounty      uint   `json:"bounty" validate:"numeric"`
 		Found_At    string `json:"found_at" validate:"required"`
 		Category    string `json:"category" validate:"required"`
 		Status      string `json:"status" validate:"required"`
@@ -163,8 +163,10 @@ func AddItem(c *fiber.Ctx) error {
 		Status:      strings.ToUpper(c.FormValue("status")),
 		Found_At:    c.FormValue("found_at"),
 	}
+	fmt.Println(requestBody.Bounty)
 	errs := pkg.GeneralValidator().Validate(requestBody)
 	if len(errs) != 0 {
+		fmt.Println(errs)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
 	}
 	if err := models.DB.Where("categories.category = ?", requestBody.Category).First(&categories).Error; err != nil {
