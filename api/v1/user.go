@@ -31,8 +31,8 @@ func UpdateProfile(c *fiber.Ctx) error {
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 		return c.Status(404).JSON(fiber.Map{"status": "Failed", "messages": "User not found"})
 	}
-	fmt.Println("We got here")
-	fmt.Println(updatedUser)
+	// fmt.Println("We got here")
+	// fmt.Println(updatedUser)
 	if updatedUser.Email != "" {
 		isValid,_ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
 		if !isValid {
