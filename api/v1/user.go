@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
@@ -24,9 +25,9 @@ func UpdateProfile(c *fiber.Ctx) error {
 		fmt.Println(err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request", "errors": "Invalid request body"})
 	}
-	errs := pkg.LoginValidator().Validate(updatedUser)
-	if len(errs) != 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": errs})
+	isValid,_ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
+	if !isValid {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect student email"})
 	}
 	var user models.User
 	result := models.DB.Where("uuid = ?", userid).First(&user)
