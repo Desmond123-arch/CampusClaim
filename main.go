@@ -60,13 +60,14 @@ func main() {
 	profileRoutes := app.Group("/profile")
 	itemsRoutes := app.Group("/items")
 	claimRoutes := app.Group("/claims")
+
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
 	authRoutes.Post("/verify-account", middleware.AuthenticateMiddleware, middleware.VerifyRateLimiter, auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 
-	authRoutes.Put("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
+	authRoutes.Patch("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
 	authRoutes.Post("/reset-password-request", auth.RequestPasswordreset)
 	authRoutes.Post("/reset-password", auth.ResetPassword)
 

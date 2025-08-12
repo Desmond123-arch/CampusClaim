@@ -85,6 +85,48 @@ type Item struct {
 	Categories  Categories  `gorm:"foreignKey:CategoryID;references:ID"`
 	Images      []Images    `gorm:"foreignKey:ItemID;references:ID"` // Assuming you want multiple images per item
 }
+type RecentSearches struct {
+	gorm.Model
+	SearchQuery string `gorm:"column:search_query;not null" validate:"required"`
+	UserID      uint   `gorm:"column:posted_by"`
+	SearchTSV   string `gorm:"type:tsvector;column:search_tsv"`
+
+	User User `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
+}
+
+func (r *RecentSearches) BeforeCreate(tx *gorm.DB) error {
+	if r.SearchQuery != "" {
+		tx.Statement.SetColumn("search_tsv", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
+	}
+	return nil
+}
+
+func (r *RecentSearches) BeforeUpdate(tx *gorm.DB) error {
+	if r.SearchQuery != "" {
+		tx.Statement.SetColumn("search_tsv", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
+	}
+	return nil
+}
+
+func (r *RecentSearches) AfterCreate(tx *gorm.DB) error {
+	var count int64
+	tx.Model(&RecentSearches{}).Where("user_id = ?", r.UserID).Count(&count)
+
+	if count > 10 {
+		tx.Where("user_id = ? AND id NOT IN (SELECT id FROM recent_searches WHERE user_id = ? ORDER BY created_at DESC LIMIT 10)",
+			r.UserID, r.UserID).Delete(&RecentSearches{})
+	}
+	return nil
+}
+
+type UserTokens struct {
+	gorm.Model
+	// Bounty      uint      `json:"bounty" gorm:"column:bounty;default:0" validate:"required,numeric"`
+	IsSubscribed  bool   `gorm:"column:is_subscribed;default:false"`
+	Token         string `gorm:"column:token;not null;uniqueIndex"`
+	UserID        uint   `gorm:"column:user;not null;uniqueIndex"`
+	User          User   `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
+}
 
 func (i Item) MarshalJSON() ([]byte, error) {
 	// Collect image URLs
@@ -103,7 +145,7 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		PostedBy    string    `json:"posted_by"`
 		CreatedAt   time.Time `json:"created_at"`
 		ImageUrls   []string  `json:"image_urls"`
-		Found_At string `json:"found_at"`
+		Found_At    string    `json:"found_at"`
 	}{
 		UUID:        i.UUID,
 		Title:       i.Title,
@@ -114,7 +156,7 @@ func (i Item) MarshalJSON() ([]byte, error) {
 		PostedBy:    i.User.FullName,
 		CreatedAt:   i.CreatedAt,
 		ImageUrls:   imageURLs,
-		Found_At: i.Found_At,
+		Found_At:    i.Found_At,
 	})
 }
 
@@ -205,4 +247,5 @@ func Setup(db *gorm.DB) {
 	for _, cat := range categories {
 		db.FirstOrCreate(&cat, Categories{NAME: cat.NAME})
 	}
+	db.Exec("CREATE INDEX IF NOT EXISTS idx_user_searches_tsv ON recent_searches USING GIN(search_tsv)")
 }

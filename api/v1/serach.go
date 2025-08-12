@@ -2,10 +2,13 @@ package v1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
+	"gorm.io/gorm"
 )
 
 func SearchByImage(c *fiber.Ctx) error {
@@ -49,7 +52,18 @@ func SearchByImage(c *fiber.Ctx) error {
 
 func SearchByDescription(c *fiber.Ctx) error {
 	description := c.FormValue("description")
+	uuid := c.Locals("userID")
+	var user models.User
+	user_res := models.DB.Where("uuid = ?", uuid).First(&user)
+	if errors.Is(user_res.Error, gorm.ErrRecordNotFound) {
+		return c.Status(400).JSON(fiber.Map{
+			"error":  "Invalid user details",
+			"status": "false",
+		})
+	}
+	searchQuery := models.RecentSearches{SearchQuery: description, UserID: user.ID}
 
+	models.DB.Create(&searchQuery)
 	if description == "" {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
@@ -57,8 +71,9 @@ func SearchByDescription(c *fiber.Ctx) error {
 		})
 	}
 	fmt.Println("Search by Text")
+
 	result, err := pkg.SendAddImageURL("", description, "search", "")
-	
+
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status": "false",
@@ -71,4 +86,3 @@ func SearchByDescription(c *fiber.Ctx) error {
 		"result": result["results"],
 	})
 }
-

@@ -223,9 +223,10 @@ func VerifyAccount(c *fiber.Ctx) error {
 
 func ChangePassword(c *fiber.Ctx) error {
 	type PasswordRequest struct {
-		Password string `json:"password,omitempty" gorm:"column:password;not null" validate:"required"`
+		OldPassword string `json:"old_password" gorm:"column:old_password;not null" validate:"required"`
+		Password string `json:"password" gorm:"column:password;not null" validate:"required"`
 	}
-
+	var user models.User
 	password := new(PasswordRequest)
 	if err := c.BodyParser(&password); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Invalid request body"})
@@ -243,9 +244,28 @@ func ChangePassword(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
 	}
 	userid, _ := verfiedtoken.Claims.(jwt.MapClaims).GetSubject()
-	models.DB.Where("uuid = ? ", userid).Update("password", password.Password)
 
-	return c.SendStatus(fiber.StatusAccepted)
+	models.DB.Where("uuid = ? ", userid).First(&user)
+
+	if !pkg.VerifyHash(password.OldPassword, user.Password) {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "errors": "Invalid credentials"})
+	}
+	hashedPassword, err := pkg.HashPassword(password.Password)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "Failed",
+			"errors": "Could not hash password",
+		})
+	}
+
+	if err := models.DB.Model(&user).Update("password", hashedPassword).Error; err != nil {
+    return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+        "status": "Failed",
+        "errors": "Could not update password",
+    })
+}
+
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status":"success"})
 }
 
 func RequestPasswordreset(c *fiber.Ctx) error {
@@ -278,7 +298,7 @@ func RequestPasswordreset(c *fiber.Ctx) error {
 		}()
 		pkg.SendResetEmail(user.Email, newToken)
 	}()
-	return c.SendStatus(fiber.StatusAccepted)
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "success"})
 }
 
 func ResetPassword(c *fiber.Ctx) error {

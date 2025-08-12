@@ -117,10 +117,11 @@ func SendResetEmail(email string, token string) {
 	type EmailData struct {
 		Url string
 	}
+	reset_url := os.Getenv("RESET_LINK")
 
 	var renderedHTML bytes.Buffer
 	data := EmailData{
-		Url: fmt.Sprintf("https://campusclaim.com/reset-password?token=%s", token),
+		Url: fmt.Sprintf("%s?token=%s",reset_url, token),
 	}
 	templ, err := template.ParseFiles("pkg/templates/ResetPassword.html")
 	
