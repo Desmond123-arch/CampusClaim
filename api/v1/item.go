@@ -251,7 +251,10 @@ func AddItem(c *fiber.Ctx) error {
 			"errors": "Internal Server Error",
 		})
 	}
-	firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(),"New Item Posted",fmt.Sprintf("New item: %s", item.Title))
+	if len(recentSearchesTokens) != 0 {
+		firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(), "New Item Posted", fmt.Sprintf("New item: %s", item.Title))
+
+	}
 	// fmt.Print(item)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success",
