@@ -8,6 +8,8 @@ services:
       - redis
       - mongo
       - nginx
+    volumes:
+      - /root/CampusClaim/campusclaim-342cf-firebase-adminsdk-fbsvc-d9ca523006.json:/app/firebase.json
   search:
     build: ./simple_search
     ports:
