@@ -61,9 +61,13 @@ func SearchByDescription(c *fiber.Ctx) error {
 			"status": "false",
 		})
 	}
-	searchQuery := models.RecentSearches{SearchQuery: description, UserID: user.ID}
+	searchQuery := models.RecentSearches{
+		SearchQuery: description, 
+		UserID: user.ID,
+		SearchTSV:   gorm.Expr("to_tsvector('english', ?)", description),
+	}
 
-	models.DB.Create(searchQuery)
+	models.DB.Create(&searchQuery)
 	if description == "" {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
@@ -75,6 +79,7 @@ func SearchByDescription(c *fiber.Ctx) error {
 	result, err := pkg.SendAddImageURL("", description, "search", "")
 
 	if err != nil {
+		fmt.Println(err)
 		return c.Status(500).JSON(fiber.Map{
 			"status": "false",
 			"error":  "An error occurred while searching by description",

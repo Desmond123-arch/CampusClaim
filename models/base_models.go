@@ -89,32 +89,33 @@ type RecentSearches struct {
 	gorm.Model
 	SearchQuery string `gorm:"column:search_query;not null" validate:"required"`
 	UserID      uint   `gorm:"column:posted_by"`
-	SearchTSV   string `gorm:"type:tsvector;column:search_tsv"`
+	SearchTSV   any `gorm:"type:tsvector"`
 
 	User User `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
 }
 
-func (r *RecentSearches) BeforeCreate(tx *gorm.DB) error {
-	if r.SearchQuery != "" {
-		tx.Statement.SetColumn("search_tsv", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
-	}
-	return nil
-}
+// func (r *RecentSearches) BeforeCreate(tx *gorm.DB) error {
+// 	if r.SearchQuery != "" {
+// 		tx.Statement.SetColumn("SearchTSV", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
+// 	}
+// 	return nil
+// }
 
-func (r *RecentSearches) BeforeUpdate(tx *gorm.DB) error {
-	if r.SearchQuery != "" {
-		tx.Statement.SetColumn("search_tsv", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
-	}
-	return nil
-}
+// func (r *RecentSearches) BeforeUpdate(tx *gorm.DB) error {
+// 	if r.SearchQuery != "" {
+// 		tx.Statement.SetColumn("SearchTSV", gorm.Expr("to_tsvector('english', ?)", r.SearchQuery))
+// 	}
+// 	return nil
+// }
 
 func (r *RecentSearches) AfterCreate(tx *gorm.DB) error {
 	var count int64
-	tx.Model(&RecentSearches{}).Where("user_id = ?", r.UserID).Count(&count)
+	tx.Model(&RecentSearches{}).Where("posted_by = ?", r.UserID).Count(&count)
 
 	if count > 10 {
-		tx.Where("user_id = ? AND id NOT IN (SELECT id FROM recent_searches WHERE user_id = ? ORDER BY created_at DESC LIMIT 10)",
+		tx.Where("posted_by = ? AND id NOT IN (SELECT id FROM recent_searches WHERE posted_by = ? ORDER BY created_at DESC LIMIT 10)",
 			r.UserID, r.UserID).Delete(&RecentSearches{})
+
 	}
 	return nil
 }
@@ -122,10 +123,10 @@ func (r *RecentSearches) AfterCreate(tx *gorm.DB) error {
 type UserTokens struct {
 	gorm.Model
 	// Bounty      uint      `json:"bounty" gorm:"column:bounty;default:0" validate:"required,numeric"`
-	IsSubscribed  bool   `gorm:"column:is_subscribed;default:true"`
-	Token         string `gorm:"column:token;not null;uniqueIndex"`
-	UserID        uint   `gorm:"column:user;not null;uniqueIndex"`
-	User          User   `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
+	IsSubscribed bool   `gorm:"column:is_subscribed;default:true"`
+	Token        string `gorm:"column:token;not null;uniqueIndex"`
+	UserID       uint   `gorm:"column:user;not null;uniqueIndex"`
+	User         User   `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
 }
 
 func (i Item) MarshalJSON() ([]byte, error) {
@@ -216,7 +217,7 @@ func Setup(db *gorm.DB) {
 		&Claims{}, &Categories{},
 		&Item{}, &Images{},
 		&EmailVerification{},
-		&UserTokens{},&RecentSearches{}, 
+		&UserTokens{}, &RecentSearches{},
 	)
 
 	item_status := []Item_Status{
