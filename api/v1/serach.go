@@ -63,7 +63,7 @@ func SearchByDescription(c *fiber.Ctx) error {
 	}
 	searchQuery := models.RecentSearches{SearchQuery: description, UserID: user.ID}
 
-	models.DB.Create(&searchQuery)
+	models.DB.Create(searchQuery)
 	if description == "" {
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",

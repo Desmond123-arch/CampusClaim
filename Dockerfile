@@ -26,6 +26,7 @@ WORKDIR /app
 
 COPY --from=builder /etc/passwd /etc/passwd
 
+
 USER appuser
 
 COPY --from=builder /app/app ./app_binary
