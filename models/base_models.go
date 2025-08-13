@@ -122,7 +122,7 @@ func (r *RecentSearches) AfterCreate(tx *gorm.DB) error {
 type UserTokens struct {
 	gorm.Model
 	// Bounty      uint      `json:"bounty" gorm:"column:bounty;default:0" validate:"required,numeric"`
-	IsSubscribed  bool   `gorm:"column:is_subscribed;default:false"`
+	IsSubscribed  bool   `gorm:"column:is_subscribed;default:true"`
 	Token         string `gorm:"column:token;not null;uniqueIndex"`
 	UserID        uint   `gorm:"column:user;not null;uniqueIndex"`
 	User          User   `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE"`
@@ -210,12 +210,14 @@ func (c Claims) MarshalJSON() ([]byte, error) {
 }
 
 func Setup(db *gorm.DB) {
-	fmt.Printf("CREATING TABLES")
+	fmt.Printf("CREATING TABLES\n")
 	db.AutoMigrate(
 		&User{}, &Item_Status{},
 		&Claims{}, &Categories{},
 		&Item{}, &Images{},
-		&EmailVerification{})
+		&EmailVerification{},
+		&UserTokens{},&RecentSearches{}, 
+	)
 
 	item_status := []Item_Status{
 		{Name: "LOST"},
@@ -248,4 +250,5 @@ func Setup(db *gorm.DB) {
 		db.FirstOrCreate(&cat, Categories{NAME: cat.NAME})
 	}
 	db.Exec("CREATE INDEX IF NOT EXISTS idx_user_searches_tsv ON recent_searches USING GIN(search_tsv)")
+	fmt.Printf("TABLES CREATED\n")
 }

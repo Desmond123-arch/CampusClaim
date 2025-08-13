@@ -54,7 +54,7 @@ func setupEmail()  (*brevo.APIClient, error) {
 	//email config setup
 	brevoApiKey := os.Getenv("BREVO_KEY")
 
-	var ctx context.Context
+	ctx := context.Background()
 	cfg := brevo.NewConfiguration()
 	cfg.AddDefaultHeader("api-key", brevoApiKey)
 	cfg.AddDefaultHeader("partner-key", brevoApiKey)
@@ -78,6 +78,7 @@ func SendVerficationEmail(email string, name string, verfier *models.EmailVerifi
 	templ, err := template.ParseFiles("pkg/templates/VerifyAccount.html")
 	if err != nil {
 		panic(err)
+		// fmt.Println(err)
 	}
 	var renderedHTML bytes.Buffer
 	exipres_in := time.Until(verfier.ExpiresAt).Seconds()
@@ -109,7 +110,7 @@ func SendVerficationEmail(email string, name string, verfier *models.EmailVerifi
 		Subject:     "Verify your account",
 		HtmlContent: renderedHTML.String(),
 	}
-	var ctx context.Context
+	ctx := context.Background()
 	apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details)
 }
 
@@ -117,12 +118,13 @@ func SendResetEmail(email string, token string) {
 	type EmailData struct {
 		Url string
 	}
-	reset_url := os.Getenv("RESET_LINK")
+	reset_url := os.Getenv("APP_URL")
 
 	var renderedHTML bytes.Buffer
 	data := EmailData{
-		Url: fmt.Sprintf("%s?token=%s",reset_url, token),
+		Url: fmt.Sprintf("%s/auth/reset-password?token=%s",reset_url, token),
 	}
+	fmt.Println(data)
 	templ, err := template.ParseFiles("pkg/templates/ResetPassword.html")
 	
 	if err != nil {
@@ -138,7 +140,9 @@ func SendResetEmail(email string, token string) {
 	apiInstance, err := setupEmail()
 
 	if err != nil {
+		fmt.Println("Error seting up email")
 		fmt.Println(err)
+		return
 	}
 
 	details := brevo.SendSmtpEmail{
@@ -156,6 +160,7 @@ func SendResetEmail(email string, token string) {
 	_, _, err = apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details)
 	if (err != nil) {
 		fmt.Println(err)
+		return
 	}
 	fmt.Println("Reset Email sent")
 }

@@ -12,6 +12,7 @@ import (
 
 	// "time"
 
+	"github.com/Desmond123-arch/CampusClaim/internal/firebase"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
@@ -36,8 +37,8 @@ func GetItems(c *fiber.Ctx) error {
 		Preload("Images").
 		Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	countQuery := models.DB.
-    Model(&models.Item{}).
-    Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
+		Model(&models.Item{}).
+		Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	if status != "" {
 		result = result.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
 		countQuery = countQuery.Where("LOWER(item_statuses.status) LIKE ?", "%"+strings.ToLower(status)+"%")
@@ -49,7 +50,6 @@ func GetItems(c *fiber.Ctx) error {
 		result.Find(&items)
 	}
 	countQuery.Count(&total)
-
 
 	pagination.Rows = items
 	pagination.TotalRows = total
@@ -71,8 +71,8 @@ func GetMyItems(c *fiber.Ctx) error {
 		Limit: c.QueryInt("limit", 20),
 	}
 	countQuery := models.DB.
-    Model(&models.Item{}).
-    Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
+		Model(&models.Item{}).
+		Joins("JOIN item_statuses ON item_statuses.id = items.status_id")
 	result := models.DB.
 		Scopes(pkg.Pagainate(items, &pagination, models.DB)).
 		Preload("User").
@@ -182,24 +182,6 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Invalid Item Status",
 		})
 	}
-	// //image uploading
-	// fileHeader, err := c.FormFile("image")
-	// if err != nil {
-	// 	return c.Status(400).JSON(fiber.Map{
-	// 		"status": "false",
-	// 		"error":  "Image is required",
-	// 	})
-	// }
-
-	// // Open the file from the file header
-	// file, err := fileHeader.Open()
-	// if err != nil {
-	// 	return c.Status(500).JSON(fiber.Map{
-	// 		"status": "false",
-	// 		"error":  "Failed to open image file",
-	// 	})
-	// }
-	// defer file.Close()
 	form, err := c.MultipartForm()
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -261,6 +243,15 @@ func AddItem(c *fiber.Ctx) error {
 			"error":  "Failed to fetch item details",
 		})
 	}
+
+	recentSearchesTokens, err := pkg.GetRecentSearched(item.Title)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status": "false",
+			"errors": "Internal Server Error",
+		})
+	}
+	firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(),"New Item Posted",fmt.Sprintf("New item: %s", item.Title))
 	// fmt.Print(item)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success",
@@ -283,10 +274,7 @@ func UpdateItem(c *fiber.Ctx) error {
 	var item models.Item
 
 	if err := c.BodyParser(&itemrequest); err != nil {
-		return c.Status(400).JSON(fiber.Map{
-			"status": "false",
-			"error":  "Invalid Request Body",
-		})
+
 	}
 
 	errs := pkg.GeneralValidator().Validate(itemrequest)

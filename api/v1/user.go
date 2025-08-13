@@ -25,7 +25,7 @@ func UpdateProfile(c *fiber.Ctx) error {
 		fmt.Println(err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Bad request", "errors": "Invalid request body"})
 	}
-	
+
 	var user models.User
 	result := models.DB.Where("uuid = ?", userid).First(&user)
 	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -34,7 +34,7 @@ func UpdateProfile(c *fiber.Ctx) error {
 	// fmt.Println("We got here")
 	// fmt.Println(updatedUser)
 	if updatedUser.Email != "" {
-		isValid,_ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
+		isValid, _ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, updatedUser.Email)
 		if !isValid {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Incorrect student email"})
 		}
@@ -78,8 +78,8 @@ func UpdateProfilePicture(c *fiber.Ctx) error {
 
 	defer file.Close()
 	go func() {
-		if _, err := pkg.UploadAsyncSave(file, fileHeader,user.ID , "profile"); err != nil {
-			log.Printf("Async upload failed: %v", err) 
+		if _, err := pkg.UploadAsyncSave(file, fileHeader, user.ID, "profile"); err != nil {
+			log.Printf("Async upload failed: %v", err)
 		}
 	}()
 	return c.SendStatus(fiber.StatusNoContent)
@@ -110,5 +110,40 @@ func DeleteProfile(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
 		"message": "User successfully Deleted",
+	})
+}
+
+func UpdateUserToken(c *fiber.Ctx) error {
+	type DeviceToken struct {
+		Token string `json:"token" validate:"required"`
+	}
+	user_uuid := c.Locals("userID")
+
+	var user models.User
+	var devicetoken DeviceToken
+
+	result := models.DB.Where("uuid = ?", user_uuid).First(&user)
+	if result.Error != nil {
+		return c.Status(404).JSON(fiber.Map{"status": "Failed", "messages": "User not found"})
+	}
+	if err := c.BodyParser(&devicetoken); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status": "false",
+			"error":  "Invalid Request Body",
+		})
+	}
+	userToken := &models.UserTokens{
+		Token: devicetoken.Token,
+		UserID: user.ID,
+		IsSubscribed: true,
+	}
+	result = models.DB.FirstOrCreate(&userToken)
+	if result.Error != nil {
+		//FIXME:handle edge cases no idea no☠️☠️
+		return c.Status(500).JSON(fiber.Map{"status": "Failed", "messages": "Interal Server error"})
+	}
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"status":  "success",
+		"message": "User Token added",
 	})
 }

@@ -46,6 +46,6 @@ func Init() {
 		DB: 0,
 		Protocol: 2,
 	})
-
+	fmt.Println("MONGO AND REDIS CONNECTED")
 }
 

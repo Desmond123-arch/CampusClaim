@@ -11,6 +11,7 @@ import (
 	v1 "github.com/Desmond123-arch/CampusClaim/api/v1"
 	"github.com/Desmond123-arch/CampusClaim/internal/auth"
 	"github.com/Desmond123-arch/CampusClaim/internal/chat"
+	"github.com/Desmond123-arch/CampusClaim/internal/firebase"
 	"github.com/Desmond123-arch/CampusClaim/internal/middleware"
 
 	// "github.com/Desmond123-arch/CampusClaim/internal/middleware"
@@ -31,11 +32,15 @@ func init() {
 	if err != nil {
 		log.Println("No .env file found, relying on environment variables")
 	}
+
 }
 
 func main() {
 
 	models.Init()
+	if err := firebase.Init(); err != nil {
+		log.Fatal("Failed to initialize Firebase:", err)
+	}
 	defer models.MDB.Disconnect(context.Background())
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -70,11 +75,13 @@ func main() {
 	authRoutes.Patch("/change-password", middleware.AuthenticateMiddleware, auth.ChangePassword)
 	authRoutes.Post("/reset-password-request", auth.RequestPasswordreset)
 	authRoutes.Post("/reset-password", auth.ResetPassword)
+	authRoutes.Post("/reset-password-resend", middleware.AuthenticateMiddleware, auth.GetNewVerficationCode)
 
 	//PROFILE ROUTES
 	profileRoutes.Get("", middleware.AuthenticateMiddleware, v1.GetProfile)
 	profileRoutes.Patch("", middleware.AuthenticateMiddleware, v1.UpdateProfile)
 	profileRoutes.Delete("", middleware.AuthenticateMiddleware, v1.DeleteProfile)
+	profileRoutes.Put("/token", middleware.AuthenticateMiddleware, v1.UpdateUserToken)
 
 	//ITEMS_ROUTES
 	itemsRoutes.Get("/my-items", middleware.AuthenticateMiddleware, v1.GetMyItems)
@@ -99,6 +106,10 @@ func main() {
 		chat.WebSocketUpgradeMiddleware(),
 		websocket.New(chat.HandleWebSocket),
 	)
-	app.Listen(":3000")
+	log.Println("Starting server on :3000")
+    if err := app.Listen(":3000"); err != nil {
+        log.Fatal("Failed to start server:", err)
+    }
+
 
 }
