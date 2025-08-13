@@ -2,7 +2,7 @@ package middleware
 
 import (
 	"context"
-	"fmt"
+	// "fmt"
 	"log"
 	"strings"
 	"time"
@@ -13,7 +13,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 )
-
 
 var rateLimiter *redisrate.Limiter
 
@@ -33,13 +32,15 @@ func AuthenticateMiddleware(c *fiber.Ctx) error {
 	tokenString := strings.ReplaceAll(c.GetReqHeaders()["Authorization"][0], "Bearer ", "")
 
 	if tokenString == "" {
-		c.Redirect("/login", fiber.StatusSeeOther)
-		return fmt.Errorf("token is Required")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "token is required",
+		})
 	}
 	token, err := auth.VerifyToken(tokenString)
 	if err != nil {
-		c.Redirect("/login", fiber.StatusSeeOther)
-		return err
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or expired token",
+		})
 	}
 	userid, _ := token.Claims.(jwt.MapClaims).GetSubject()
 	c.Locals("userID", userid)

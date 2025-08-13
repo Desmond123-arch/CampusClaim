@@ -55,6 +55,14 @@ func VerifyToken(tokenString string) (*jwt.Token, error) {
 		return nil, err
 	}
 
+	claims, err := token.Claims.GetExpirationTime();
+	if err != nil {
+		return nil, err
+	}
+	if time.Now().After(claims.Time) {
+		return nil, fmt.Errorf("token has expired")
+	}
+
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}

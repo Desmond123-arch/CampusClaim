@@ -73,7 +73,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
 	cookie.HTTPOnly = true
 	cookie.Secure = true
-	cookie.SameSite = "Lax"
+	cookie.SameSite = "None"
 
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":      "success",
@@ -122,7 +122,7 @@ func LoginUser(c *fiber.Ctx) error {
 	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
 	cookie.HTTPOnly = true
 	cookie.Secure = true
-	cookie.SameSite = "Lax"
+	cookie.SameSite = "None"
 	c.Cookie((*fiber.Cookie)(cookie))
 
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
@@ -168,7 +168,7 @@ func GetNewRefreshToken(c *fiber.Ctx) error {
 	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
 	cookie.HTTPOnly = true
 	cookie.Secure = true
-	cookie.SameSite = "Lax"
+	cookie.SameSite = "None"
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"status": "Success", "accessToken": newAccessToken})
 }
 
@@ -288,7 +288,7 @@ func RequestPasswordreset(c *fiber.Ctx) error {
 	result = models.DB.Model(&user).Update("password_token", newToken)
 	// fmt.Println(resul)
 	if result.RowsAffected == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
 	}
 	go func() {
 		defer func() {
@@ -320,7 +320,7 @@ func ResetPassword(c *fiber.Ctx) error {
 		})
 
 	if result.RowsAffected == 0 {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"status": "Failed", "message": "Invalid or expired token"})
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "Password successfully reset"})

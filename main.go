@@ -59,6 +59,7 @@ func main() {
 		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders: "Content-Type, Authorization, enctype",
+		AllowCredentials: true,
 	}))
 
 	authRoutes := app.Group("/auth")
