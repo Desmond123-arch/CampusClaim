@@ -101,6 +101,7 @@ func main() {
 
 	//CHAT AND WEBSOCKETS
 	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetMessages)
+	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetConversations)
 	app.Get(
 		"/ws",
 		middleware.AuthenticateMiddleware,

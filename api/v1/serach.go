@@ -88,6 +88,6 @@ func SearchByDescription(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status": "success",
-		"result": result["results"],
+		"result": result,
 	})
 }
