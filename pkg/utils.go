@@ -111,7 +111,8 @@ func SendVerficationEmail(email string, name string, verfier *models.EmailVerifi
 		HtmlContent: renderedHTML.String(),
 	}
 	ctx := context.Background()
-	apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details)
+	apiInstance.TransactionalEmailsApi.SendTransacEmail(ctx, details);
+	fmt.Println("Verification Email sent");
 }
 
 func SendResetEmail(email string, token string) {
@@ -162,7 +163,7 @@ func SendResetEmail(email string, token string) {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("Reset Email sent")
+	fmt.Println("Reset Email sent");
 }
 
 

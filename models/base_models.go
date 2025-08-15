@@ -175,8 +175,9 @@ type Claims struct {
 	gorm.Model
 	ClaimID  uuid.UUID `gorm:"column:claim_id;default:uuid_generate_v4();"`
 	ItemID   uint      `gorm:"column:item_id;uniqueIndex:idx_user_item"`
-	UserID   uint      `gorm:"column:posted_by;uniqueIndex:idx_user_item"`
+	UserID   uint      `gorm:"column:claimed_by;uniqueIndex:idx_user_item"`
 	StatusID uint      `json:"status,omitempty" gorm:"column:status_id"`
+	
 
 	User        User         `gorm:"foreignKey:UserID;references:ID;OnDelete:CASCADE;" validate:"-"`
 	ClaimStatus Claim_Status `gorm:"foreignKey:StatusID;references:ID" validate:"-"`

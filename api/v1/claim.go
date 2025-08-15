@@ -2,7 +2,11 @@ package v1
 
 import (
 	"errors"
+	"fmt"
+	"strconv"
 
+	// "github.com/Desmond123-arch/CampusClaim/internal/firebase"
+	"github.com/Desmond123-arch/CampusClaim/internal/firebase"
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
@@ -68,13 +72,15 @@ func SubmitClaim(c *fiber.Ctx) error {
 			"error":  "User not found",
 		})
 	}
+
 	if err := models.DB.Where("status = ?", "Pending").First(&status).Error; err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "False", "error": "Invalid claim status"})
 	}
+
 	if item.User.UUID.String() == user.UUID.String() {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "False",
-			"error": "Submitted user cannot claim item",
+			"error":  "Submitted user cannot claim item",
 		})
 	}
 	claim := models.Claims{
@@ -91,7 +97,16 @@ func SubmitClaim(c *fiber.Ctx) error {
 			"error":  "User has already claimed this item",
 		})
 	}
+	var user_token models.UserTokens
+	result = models.DB.Where("user = ?",strconv.Itoa(int(item.UserID))).First(&user_token)
 
+	if result.Error != nil {
+		fmt.Println(result.Error)
+	}
+	if (user_token.Token != "") {
+		firebase.SendNotifactionClaim([]string{user_token.Token}, item.UserID, fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
+	}
+	// firebase.SendNotifactionClaim()
 	if err := models.DB.
 		Preload("User").
 		Preload("Item").
@@ -108,7 +123,6 @@ func SubmitClaim(c *fiber.Ctx) error {
 		"claim":  claim,
 	})
 }
-
 
 func DeleteClaim(c *fiber.Ctx) error {
 	userID := c.Locals("userID").(string)
@@ -141,7 +155,7 @@ func DeleteClaim(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"status": "success",
+		"status":  "success",
 		"message": "Claim deleted successfully",
 	})
 }

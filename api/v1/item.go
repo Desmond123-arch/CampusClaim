@@ -254,14 +254,13 @@ func AddItem(c *fiber.Ctx) error {
 	fmt.Println("Recent Search Tokens");
 	fmt.Println(recentSearchesTokens);
 	if len(recentSearchesTokens) != 0 {
-		firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(), "New Item Posted", fmt.Sprintf("New item: %s", item.Title))
+		go firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(), "New Item Posted", fmt.Sprintf("New item: %s", item.Title))
 	}
 	// fmt.Print(item)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status": "success",
 		"item":   &item,
 	})
-
 }
 
 func UpdateItem(c *fiber.Ctx) error {
