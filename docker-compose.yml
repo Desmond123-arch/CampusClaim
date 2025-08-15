@@ -13,6 +13,8 @@ services:
     build: ./simple_search
     ports:
       - "8000:8000"
+    volumes:
+      - ./index.faiss:/app/faiss_data
   redis:
     image: "redis:alpine"
   mongo:
