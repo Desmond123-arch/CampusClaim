@@ -17,7 +17,7 @@ func GetRecentSearched(ItemTitle string) ([]string, error) {
 			SELECT ut.token, rs.created_at
 			FROM recent_searches rs
 			JOIN user_tokens ut ON ut.user = rs.posted_by
-			WHERE rs.search_tsv @@ to_tsquery('english', ?) AND ut.is_subscribed = true
+			WHERE rs.search_tsv @@ to_tsquery('english', $1) AND ut.is_subscribed = true
 			ORDER BY rs.created_at DESC
 			LIMIT 50
 		) AS ordered_results
