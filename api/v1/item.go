@@ -251,6 +251,8 @@ func AddItem(c *fiber.Ctx) error {
 			"errors": "Internal Server Error",
 		})
 	}
+	fmt.Println("Recent Search TOkens");
+	fmt.Println(recentSearchesTokens);
 	if len(recentSearchesTokens) != 0 {
 		firebase.SendNotifactions(recentSearchesTokens, item.UUID.String(), "New Item Posted", fmt.Sprintf("New item: %s", item.Title))
 
