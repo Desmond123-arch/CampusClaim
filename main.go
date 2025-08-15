@@ -49,6 +49,7 @@ func main() {
 				Message: err.Error(),
 			})
 		},
+		BodyLimit: 50 * 1024 * 1024,
 	})
 
 	// app := fiber.New()
