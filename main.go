@@ -52,6 +52,8 @@ func main() {
 		BodyLimit: 50 * 1024 * 1024,
 	})
 
+
+
 	// app := fiber.New()
 	// app.Use(middleware.AuthenticateMiddleware)
 	app.Use(logger.New())
@@ -59,9 +61,11 @@ func main() {
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders: "Content-Type, Authorization, enctype",
+		AllowHeaders: "Content-Type,Authorization,enctype",
 		AllowCredentials: true,
 	}))
+
+
 
 	authRoutes := app.Group("/auth")
 	profileRoutes := app.Group("/profile")
