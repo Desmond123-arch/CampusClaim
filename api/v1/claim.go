@@ -97,20 +97,16 @@ func SubmitClaim(c *fiber.Ctx) error {
 			"error":  "User has already claimed this item",
 		})
 	}
-	var tokens []string
-	result = models.DB.
-		Table("user_tokens").
-		Select("token").
-		Where(`"user" = ? AND is_subscribed = true`, user.ID).
-		Scan(&tokens)
+	var user_token models.UserTokens
+	result = models.DB.Where(`"user" = ?`, strconv.Itoa(int(item.UserID))).First(&user_token)
 
 	if result.Error != nil {
 		fmt.Println(result.Error)
 	}
-	if len(tokens) == 0 {
+	fmt.Println(user_token)
+	if (user_token.Token != "" && user_token.IsSubscribed) {
 		fmt.Println("Notification sent")
-		fmt.Println(tokens)
-		firebase.SendNotifactionClaim(tokens, strconv.Itoa(int(item.UserID)), item.UUID.String(), fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
+		firebase.SendNotifactionClaim([]string{user_token.Token}, strconv.Itoa(int(item.UserID)), item.UUID.String(),fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
 	}
 	// firebase.SendNotifactionClaim()
 	if err := models.DB.
