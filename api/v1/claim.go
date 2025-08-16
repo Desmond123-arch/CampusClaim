@@ -103,9 +103,7 @@ func SubmitClaim(c *fiber.Ctx) error {
 	if result.Error != nil {
 		fmt.Println(result.Error)
 	}
-	fmt.Println(user_token)
 	if (user_token.Token != "" && user_token.IsSubscribed) {
-		fmt.Println("Notification sent")
 		firebase.SendNotifactionClaim([]string{user_token.Token}, strconv.Itoa(int(item.UserID)), item.UUID.String(),fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
 	}
 	// firebase.SendNotifactionClaim()
