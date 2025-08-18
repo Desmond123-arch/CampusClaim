@@ -53,12 +53,33 @@ func GetItemCliams(c *fiber.Ctx) error {
 }
 
 func SubmitClaim(c *fiber.Ctx) error {
+	type claimDetails struct {
+		AgreedToTerms bool `json:agreedToTerms`
+		LostDateTime string `json:lostDateTime`
+		LostLocation string `json:lostDateTime`
+		UniqueFeature string `json:uniqueFeature`
+		DeliveryPhone string `deliveryPhone`
+
+	}
 	userid := c.Locals("userID").(string)
 	item_id := c.Params("id")
 
+	var claimDetail claimDetails
 	var item models.Item
 	var user models.User
 	var status models.Claim_Status //default is pending which is 1
+
+	
+
+
+	if err := c.BodyParser(&claimDetail); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"status":"Failed",
+				"errors": "Incorrect request body",
+			})
+	}
+
 	if err := models.DB.Preload("User").Where("item_uuid = ?", item_id).First(&item).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"status": "false",
@@ -80,7 +101,7 @@ func SubmitClaim(c *fiber.Ctx) error {
 	if item.User.UUID.String() == user.UUID.String() {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status": "False",
-			"error":  "Submitted user cannot claim item",
+			"error":  "Poster cannot claim posted item",
 		})
 	}
 	claim := models.Claims{
@@ -99,12 +120,29 @@ func SubmitClaim(c *fiber.Ctx) error {
 	}
 	var user_token models.UserTokens
 	result = models.DB.Where(`"user" = ?`, strconv.Itoa(int(item.UserID))).First(&user_token)
-
-	if result.Error != nil {
-		fmt.Println(result.Error)
+	agreed := "No"
+	if claimDetail.AgreedToTerms == true {
+		agreed = "Yes"
 	}
-	if (user_token.Token != "" && user_token.IsSubscribed) {
-		firebase.SendNotifactionClaim([]string{user_token.Token}, strconv.Itoa(int(item.UserID)), item.UUID.String(),fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
+	
+	msg := fmt.Sprintf(
+		"%s is trying to claim your item.\n\n"+
+			"Here are the details they provided:\n\n"+
+			"Agreed to terms: %s\n"+
+			"Lost on: %s\n"+
+			"Lost at: %s\n"+
+			"Unique feature mentioned: %s",
+		user.FullName,
+		agreed,
+		claimDetail.LostDateTime,
+		claimDetail.LostLocation,
+		claimDetail.UniqueFeature,
+	)
+	
+	CreateConversation(userid, item.User.UUID.String(), string(msg))
+
+	if user_token.Token != "" && user_token.IsSubscribed {
+		firebase.SendNotifactionClaim([]string{user_token.Token}, strconv.Itoa(int(item.UserID)), item.UUID.String(), fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
 	}
 	// firebase.SendNotifactionClaim()
 	if err := models.DB.

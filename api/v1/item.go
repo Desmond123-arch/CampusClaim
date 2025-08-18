@@ -149,7 +149,7 @@ func AddItem(c *fiber.Ctx) error {
 	var item_status models.Item_Status
 	bounty, err := strconv.ParseUint(c.FormValue("bounty"), 10, 32)
 	if err != nil {
-		fmt.Println(err)
+		// fmt.Println(err)
 		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
 			"error":  "Invalid Bounty Value",
@@ -163,7 +163,6 @@ func AddItem(c *fiber.Ctx) error {
 		Status:      strings.ToUpper(c.FormValue("status")),
 		Found_At:    c.FormValue("found_at"),
 	}
-	fmt.Println(requestBody.Bounty)
 	errs := pkg.GeneralValidator().Validate(requestBody)
 	if len(errs) != 0 {
 		fmt.Println(errs)
@@ -277,7 +276,11 @@ func UpdateItem(c *fiber.Ctx) error {
 	var item models.Item
 
 	if err := c.BodyParser(&itemrequest); err != nil {
-
+		return c.Status(fiber.StatusBadRequest).JSON(
+			fiber.Map{
+				"status":"Failed",
+				"errors": "Incorrect request body",
+			})
 	}
 
 	errs := pkg.GeneralValidator().Validate(itemrequest)

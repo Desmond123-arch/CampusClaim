@@ -47,6 +47,26 @@ func AuthenticateMiddleware(c *fiber.Ctx) error {
 	c.Next()
 	return nil
 }
+func AuthenticateWebSocketMiddleware(c *fiber.Ctx) error { 
+	log.Println("WebSocket middleware: Connection attempt from", c.IP())
+	tokenString := c.Query("token")
+
+	if tokenString == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "token is required",
+		})
+	}
+	token, err := auth.VerifyToken(tokenString)
+	if err != nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "invalid or expired token",
+		})
+	}
+	userid, _ := token.Claims.(jwt.MapClaims).GetSubject()
+	c.Locals("userID", userid)
+	c.Next()
+	return nil
+}
 
 func VerifyRateLimiter(c *fiber.Ctx) error {
 	ctx := context.Background()
@@ -65,3 +85,20 @@ func VerifyRateLimiter(c *fiber.Ctx) error {
 	}
 	return c.Next()
 }
+func GlobalRateLimiter(c *fiber.Ctx) error {
+	ctx := context.Background()
+	SetupRedisRateLimiter()
+	res, err := rateLimiter.Allow(ctx, c.IP(), redisrate.Limit{
+		Rate:   50,
+		Burst:  50,
+		Period: time.Minute * 30,
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Rate limiter error")
+	}
+	if res.Allowed <= 0 {
+		return c.SendStatus(fiber.StatusTooManyRequests)
+	}
+	return c.Next()
+}
+

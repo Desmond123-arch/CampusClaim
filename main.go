@@ -56,7 +56,8 @@ func main() {
 
 	// app := fiber.New()
 	// app.Use(middleware.AuthenticateMiddleware)
-	app.Use(logger.New())
+	app.Use(logger.New());
+	// app.Use(middleware.GlobalRateLimiter)
 
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
@@ -105,11 +106,11 @@ func main() {
 	claimRoutes.Delete("/:id", middleware.AuthenticateMiddleware, v1.DeleteClaim)
 
 	//CHAT AND WEBSOCKETS
+	app.Get("/messages/convo", middleware.AuthenticateMiddleware, v1.GetConversations)
 	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetMessages)
-	app.Get("/messages/:userId", middleware.AuthenticateMiddleware, v1.GetConversations)
 	app.Get(
 		"/ws",
-		middleware.AuthenticateMiddleware,
+		middleware.AuthenticateWebSocketMiddleware,
 		chat.WebSocketUpgradeMiddleware(),
 		websocket.New(chat.HandleWebSocket),
 	)
