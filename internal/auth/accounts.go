@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Desmond123-arch/CampusClaim/models"
 	"github.com/Desmond123-arch/CampusClaim/pkg"
@@ -107,11 +108,19 @@ func LoginWithSchoolCred(c *fiber.Ctx) error {
 	}
 
 	// fmt.Println(details["name"], details["email"])
+	var nameStr []string
+	for _, n := range strings.Fields(details["name"]) {
+		name := []rune(strings.ToLower(n))
+		name[0] = unicode.ToUpper(name[0])
+		nameStr = append(nameStr, string(name))
+	}
+
 	schoolUser := models.User{
-		FullName:   details["name"],
+		FullName:   strings.Join(nameStr, " "),
 		IsVerified: true,
 		Email:      details["email"],
 	}
+
 	result := models.DB.Where(models.User{Email: details["email"]}).FirstOrCreate(&schoolUser)
 
 	if result.Error != nil {
@@ -165,7 +174,7 @@ func LoginWithGoogle(c *fiber.Ctx) error {
 
 	fmt.Println(email, full_name, picture)
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, email)
-	if  !matched {
+	if !matched {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Email must be a school Email"})
 	}
 
