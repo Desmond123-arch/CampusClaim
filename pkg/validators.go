@@ -64,6 +64,7 @@ func isSchoolEmail(f1 validator.FieldLevel) bool {
 	matched, _ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, email)
 	return matched
 }
+
 func validatePassword(f1 validator.FieldLevel) bool {
 	parent := f1.Parent()
 	confirmField := parent.FieldByName("ConfirmPassword")

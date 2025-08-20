@@ -13,10 +13,10 @@ type User struct {
 	gorm.Model
 	// ID           uint      `gorm:"primaryKey;column:id;autoIncrement"`
 	UUID               uuid.UUID         `gorm:"type:uuid;default:uuid_generate_v4();"`
-	Password           string            `json:"password,omitempty" gorm:"column:password;not null" validate:"required,validate_password"`
+	Password           string            `json:"password,omitempty" gorm:"column:password;" validate:"required,validate_password"`
 	ConfirmPassword    string            `json:"confirm_password,omitempty" gorm:"-" validate:"required"`
 	FullName           string            `json:"full_name" gorm:"column:full_name;not null" validate:"required"`
-	Email              string            `json:"email" gorm:"column:email;not null;unique" validate:"required,email,school_email"`
+	Email              string            `json:"email" gorm:"column:email;unique" validate:"required,email,school_email"`
 	PhoneNumber        string            `json:"phone_number" gorm:"column:phone_number;not null" validate:"required"`
 	ImageURL           string            `json:"profile_image" gorm:"column:profile_image"`
 	RefreshToken       string            `gorm:"column:refresh_token"`

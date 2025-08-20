@@ -54,11 +54,11 @@ func GetItemCliams(c *fiber.Ctx) error {
 
 func SubmitClaim(c *fiber.Ctx) error {
 	type claimDetails struct {
-		AgreedToTerms bool `json:agreedToTerms`
-		LostDateTime string `json:lostDateTime`
-		LostLocation string `json:lostDateTime`
-		UniqueFeature string `json:uniqueFeature`
-		DeliveryPhone string `deliveryPhone`
+		AgreedToTerms bool `json:"agreedToTerms"`
+		LostDateTime string `json:"lostDateTime"`
+		LostLocation string `json:"lostLocation"`
+		UniqueFeature string `json:"uniqueFeature"`
+		DeliveryPhone string `json:"deliveryPhone"`
 
 	}
 	userid := c.Locals("userID").(string)
@@ -119,9 +119,9 @@ func SubmitClaim(c *fiber.Ctx) error {
 		})
 	}
 	var user_token models.UserTokens
-	result = models.DB.Where(`"user" = ?`, strconv.Itoa(int(item.UserID))).First(&user_token)
+	_ = models.DB.Where(`"user" = ?`, strconv.Itoa(int(item.UserID))).First(&user_token)
 	agreed := "No"
-	if claimDetail.AgreedToTerms == true {
+	if claimDetail.AgreedToTerms {
 		agreed = "Yes"
 	}
 	

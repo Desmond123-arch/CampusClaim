@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"google.golang.org/api/idtoken"
+
 	"gorm.io/gorm"
 )
 
@@ -78,6 +82,124 @@ func RegisterUser(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"status":      "success",
 		"user":        user,
+		"accessToken": accessToken,
+	})
+}
+
+func LoginWithSchoolCred(c *fiber.Ctx) error {
+	type SchoolCred struct {
+		ReferenceNumber string `json:"username" validate:"required"`
+		Password        string `json:"password" validate:"required"`
+	}
+	var user SchoolCred
+
+	if err := c.BodyParser(&user); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid request body"})
+	}
+
+	if user.ReferenceNumber == "" && user.Password == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid details"})
+	}
+
+	details, err := pkg.GetSchoolDetails(user.ReferenceNumber, user.Password)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid Login Details"})
+	}
+
+	// fmt.Println(details["name"], details["email"])
+	schoolUser := models.User{
+		FullName:   details["name"],
+		IsVerified: true,
+		Email:      details["email"],
+	}
+	result := models.DB.Where(models.User{Email: details["email"]}).FirstOrCreate(&schoolUser)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
+	}
+
+	accessToken, err := CreateAccessToken(schoolUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	refreshToken, err := CreateRefreshToken(schoolUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	cookie := new(fiber.Cookie)
+	cookie.Name = "RefreshToken"
+	cookie.Value = refreshToken
+	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
+	cookie.HTTPOnly = true
+	cookie.Secure = true
+	cookie.SameSite = "None"
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":      "success",
+		"user":        &schoolUser,
+		"accessToken": accessToken,
+	})
+}
+
+func LoginWithGoogle(c *fiber.Ctx) error {
+	type Token struct {
+		IdToken string `json:"token"`
+	}
+	var token Token
+	client_token := os.Getenv("GOOGLE_CLIENT_ID")
+	if err := c.BodyParser(&token); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid data"})
+	}
+	if token.IdToken == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid request details"})
+	}
+
+	fmt.Println(token)
+	payload, err := idtoken.Validate(c.Context(), token.IdToken, client_token)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Invalid Google Tokens"})
+	}
+	email := payload.Claims["email"].(string)
+	full_name := payload.Claims["name"].(string)
+	picture := payload.Claims["picture"].(string)
+
+	fmt.Println(email, full_name, picture)
+	matched, _ := regexp.MatchString(`^[a-zA-Z0-9._%+-]+@st\.umat\.edu\.gh$`, email)
+	if  !matched {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"status": "Failed", "errors": "Email must be a school Email"})
+	}
+
+	schoolUser := models.User{
+		FullName:   full_name,
+		IsVerified: true,
+		Email:      email,
+		ImageURL:   picture,
+	}
+	result := models.DB.Where(models.User{Email: email}).FirstOrCreate(&schoolUser)
+
+	if result.Error != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": result.Error})
+	}
+
+	accessToken, err := CreateAccessToken(schoolUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	refreshToken, err := CreateRefreshToken(schoolUser.UUID.String())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "errors": "An unexpected error occured"})
+	}
+	cookie := new(fiber.Cookie)
+	cookie.Name = "RefreshToken"
+	cookie.Value = refreshToken
+	cookie.Expires = time.Now().Add(24 * time.Hour * 72)
+	cookie.HTTPOnly = true
+	cookie.Secure = true
+	cookie.SameSite = "None"
+
+	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
+		"status":      "success",
+		"user":        &schoolUser,
 		"accessToken": accessToken,
 	})
 }
@@ -224,7 +346,7 @@ func VerifyAccount(c *fiber.Ctx) error {
 func ChangePassword(c *fiber.Ctx) error {
 	type PasswordRequest struct {
 		OldPassword string `json:"old_password" gorm:"column:old_password;not null" validate:"required"`
-		Password string `json:"password" gorm:"column:password;not null" validate:"required"`
+		Password    string `json:"password" gorm:"column:password;not null" validate:"required"`
 	}
 	var user models.User
 	password := new(PasswordRequest)
@@ -259,13 +381,13 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	if err := models.DB.Model(&user).Update("password", hashedPassword).Error; err != nil {
-    return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-        "status": "Failed",
-        "errors": "Could not update password",
-    })
-}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"status": "Failed",
+			"errors": "Could not update password",
+		})
+	}
 
-	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status":"success"})
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{"status": "success"})
 }
 
 func RequestPasswordreset(c *fiber.Ctx) error {

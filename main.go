@@ -76,6 +76,8 @@ func main() {
 	// AUTH ROUTES
 	authRoutes.Post("/register", auth.RegisterUser)
 	authRoutes.Post("/login", auth.LoginUser)
+	authRoutes.Post("/school-login", auth.LoginWithSchoolCred)
+	authRoutes.Post("/google-login", auth.LoginWithGoogle)
 	authRoutes.Post("/verify-account", middleware.AuthenticateMiddleware, middleware.VerifyRateLimiter, auth.VerifyAccount)
 	authRoutes.Get("/refresh-token", auth.GetNewRefreshToken)
 

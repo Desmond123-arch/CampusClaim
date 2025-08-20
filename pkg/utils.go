@@ -3,6 +3,7 @@ package pkg
 import (
 	"bytes"
 	"context"
+
 	// "context"
 	"crypto/rand"
 	"encoding/json"
@@ -242,5 +243,38 @@ func SendAddImageURL(imageURL, text, requestType, item_uuid string) (map[string]
 		return nil, fmt.Errorf("failed to decode API response: %w", err)
 	}
 
+	return result, nil
+}
+
+
+func GetSchoolDetails(username, password string) (map[string]string, error) {
+	var endpoint string
+	requestBody := make(map[string]string)
+	endpoint = os.Getenv("SCHOOL_AUTH_ENDPOINT")
+	requestBody["username"] = username
+	requestBody["password"] = password
+
+	jsonData, err := json.Marshal(requestBody)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request JSON: %w", err)
+	}
+
+	resp, err := httpClient.Post(endpoint, "application/json", bytes.NewBuffer(jsonData))
+
+	if err != nil {
+		fmt.Println(err)
+		fmt.Println(endpoint)
+		return nil, fmt.Errorf("Failed to decode API response body")
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("Invalid Login details")
+	}
+	var result map[string]string
+	if err := json.NewDecoder((resp.Body)).Decode(&result); err != nil {
+		return nil, fmt.Errorf("Failed to decode API response body")
+	}
 	return result, nil
 }

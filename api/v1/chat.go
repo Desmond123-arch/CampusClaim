@@ -87,7 +87,7 @@ func GetConversations(c *fiber.Ctx) error {
 		}
 
 		var latestMessage models.Messages
-		err := msgCollection.FindOne(ctx,
+		_ = msgCollection.FindOne(ctx,
 			bson.M{"channel_id": channel.ID},
 			options.FindOne().SetSort(bson.M{"sent_at": -1}),
 		).Decode(&latestMessage)
@@ -96,8 +96,8 @@ func GetConversations(c *fiber.Ctx) error {
 
 		if err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"status":"Failed",
-				"result":"Internal server error",
+				"status": "Failed",
+				"result": "Internal server error",
 			})
 		}
 		conversation := fiber.Map{
@@ -108,13 +108,15 @@ func GetConversations(c *fiber.Ctx) error {
 			"last_message_at": nil,
 			"other_user_name": otherUser.FullName,
 		}
-
-		if err == nil {
-			conversation["last_message"] = latestMessage.Content
-			conversation["last_message_at"] = latestMessage.TimeStamp
-			conversation["last_message_sender"] = latestMessage.Sender
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status": "Failed",
+				"result": "Internal server error",
+			})
 		}
-
+		conversation["last_message"] = latestMessage.Content
+		conversation["last_message_at"] = latestMessage.TimeStamp
+		conversation["last_message_sender"] = latestMessage.Sender
 		conversations = append(conversations, conversation)
 	}
 
@@ -126,7 +128,7 @@ func GetConversations(c *fiber.Ctx) error {
 
 func CreateConversation(senderID, receiverID, message string) error {
 	if senderID == receiverID {
-		return errors.New("Cannont create conversation with yourself")
+		return errors.New("cannont create conversation with yourself")
 	}
 
 	ctx := context.Background()
