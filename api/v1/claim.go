@@ -139,7 +139,7 @@ func SubmitClaim(c *fiber.Ctx) error {
 		claimDetail.UniqueFeature,
 	)
 	
-	CreateConversation(userid, item.User.UUID.String(), string(msg))
+	CreateConversation(userid, item.User.UUID.String(), msg)
 
 	if user_token.Token != "" && user_token.IsSubscribed {
 		firebase.SendNotifactionClaim([]string{user_token.Token}, strconv.Itoa(int(item.UserID)), item.UUID.String(), fmt.Sprintf("Claimed Submitted For your recent %s", item.Title), "Please verify claim")
