@@ -10,6 +10,7 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UpdateUserInput struct {
@@ -133,11 +134,14 @@ func UpdateUserToken(c *fiber.Ctx) error {
 		})
 	}
 	userToken := &models.UserTokens{
-		Token: devicetoken.Token,
-		UserID: user.ID,
+		Token:        devicetoken.Token,
+		UserID:       user.ID,
 		IsSubscribed: true,
 	}
-	result = models.DB.FirstOrCreate(&userToken)
+	result = models.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user"}, {Name: "token"}},
+		DoUpdates: clause.AssignmentColumns([]string{"is_subscribed"}),
+	}).Create(&userToken)
 	if result.Error != nil {
 		//FIXME:handle edge cases no idea no☠️☠️
 		return c.Status(500).JSON(fiber.Map{"status": "Failed", "messages": "Interal Server error"})
