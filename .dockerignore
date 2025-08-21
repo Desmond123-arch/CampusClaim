@@ -1,0 +1,28 @@
+# Git
+.git
+.gitignore
+
+# Docker
+.dockerignore
+Dockerfile*
+docker-compose.yml
+
+# IDE and OS files
+.idea
+.vscode
+*.DS_Store
+Thumbs.db
+
+# Language/Framework specific
+node_modules
+/dist
+/build
+/target
+venv
+*.pyc
+__pycache__
+
+# Log files and local data
+*.log
+*.sql
+*.sqlite
