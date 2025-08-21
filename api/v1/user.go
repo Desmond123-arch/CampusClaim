@@ -10,6 +10,7 @@ import (
 	"github.com/Desmond123-arch/CampusClaim/pkg"
 	"github.com/gofiber/fiber/v2"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type UpdateUserInput struct {
@@ -117,49 +118,36 @@ func UpdateUserToken(c *fiber.Ctx) error {
 	type DeviceToken struct {
 		Token string `json:"token" validate:"required"`
 	}
-
 	user_uuid := c.Locals("userID")
 
 	var user models.User
 	var devicetoken DeviceToken
 
-	if err := models.DB.Where("uuid = ?", user_uuid).First(&user).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"status": "Failed", "message": "User not found"})
+	result := models.DB.Where("uuid = ?", user_uuid).First(&user)
+	if result.Error != nil {
+		return c.Status(404).JSON(fiber.Map{"status": "Failed", "messages": "User not found"})
 	}
-
 	if err := c.BodyParser(&devicetoken); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.Status(400).JSON(fiber.Map{
 			"status": "false",
 			"error":  "Invalid Request Body",
 		})
 	}
-
-	var existingToken models.UserTokens
-
-	err := models.DB.Where("user_id = ? AND token = ?", user.ID, devicetoken.Token).First(&existingToken).Error
-
-	if err == nil {
-		existingToken.IsSubscribed = true
-		if err := models.DB.Save(&existingToken).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "message": "Failed to update user token"})
-		}
-
-	} else if errors.Is(err, gorm.ErrRecordNotFound) {
-		newUserToken := &models.UserTokens{
-			UserID:       user.ID,
-			Token:        devicetoken.Token,
-			IsSubscribed: true,
-		}
-		if err := models.DB.Create(&newUserToken).Error; err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "message": "Failed to create user token"})
-		}
-
-	} else {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "Failed", "message": "Internal Server Error"})
+	userToken := &models.UserTokens{
+		Token:        devicetoken.Token,
+		UserID:       user.ID,
+		IsSubscribed: true,
 	}
-
+	result = models.DB.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "user"}, {Name: "token"}},
+		DoUpdates: clause.AssignmentColumns([]string{"is_subscribed"}),
+	}).Create(&userToken)
+	if result.Error != nil {
+		//FIXME:handle edge cases no idea no☠️☠️
+		return c.Status(500).JSON(fiber.Map{"status": "Failed", "messages": "Interal Server error"})
+	}
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
 		"status":  "success",
-		"message": "User token registered successfully",
+		"message": "User Token added",
 	})
 }
