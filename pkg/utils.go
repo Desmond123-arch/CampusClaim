@@ -196,9 +196,6 @@ func NewClient() (*Client, error) {
 	}, nil
 }
 
-// It's still highly recommended to have a shared HTTP client with a timeout.
-// This prevents your function from hanging indefinitely on a network issue.
-// We can define it once at the package level.
 var httpClient = &http.Client{
 	Timeout: 30 * time.Second,
 }
