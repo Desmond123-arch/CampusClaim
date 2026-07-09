@@ -15,6 +15,10 @@ var RedisClient *redis.Client
 var MDB *mongo.Client
 func Init() {
 	mongodb_url := os.Getenv("MONGODB_URL")
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
 
 	var err error
 	dsn := fmt.Sprintf(
@@ -41,7 +45,7 @@ func Init() {
         panic("failed to connect to mongo database")
     }
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
+		Addr: redisAddr,
 		Password: "",
 		DB: 0,
 		Protocol: 2,

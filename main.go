@@ -4,7 +4,7 @@ import (
 	// "context"
 	"context"
 	"log"
-	"os"
+	// "os"
 
 	// "time"
 
@@ -51,9 +51,10 @@ func main() {
 	app.Use(logger.New())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: os.Getenv("ALLOWED_ORIGIN"),
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders: "Content-Type, Authorization, enctype",
+		AllowOrigins:     "http://localhost:4200",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
+		AllowHeaders:     "Content-Type, Authorization, enctype",
+		AllowCredentials: true,
 	}))
 
 	authRoutes := app.Group("/auth")
