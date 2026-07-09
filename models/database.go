@@ -13,6 +13,7 @@ import (
 var DB *gorm.DB
 var RedisClient *redis.Client
 var MDB *mongo.Client
+
 func Init() {
 	mongodb_url := os.Getenv("MONGODB_URL")
 	redisAddr := os.Getenv("REDIS_ADDR")
@@ -21,35 +22,38 @@ func Init() {
 	}
 
 	var err error
-	dsn := fmt.Sprintf(
-		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
-		os.Getenv("POSTGRES_HOST"),
-		os.Getenv("POSTGRES_USER"),
-		os.Getenv("POSTGRES_PASSWORD"),
-		os.Getenv("POSTGRES_DB"),
-		os.Getenv("POSTGRES_PORT"),
-	)
+	// dsn := fmt.Sprintf(
+	// 	"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+	// 	os.Getenv("POSTGRES_HOST"),
+	// 	os.Getenv("POSTGRES_USER"),
+	// 	os.Getenv("POSTGRES_PASSWORD"),
+	// 	os.Getenv("POSTGRES_DB"),
+	// 	os.Getenv("POSTGRES_PORT"),
+	// )
+	dsn := os.Getenv("DATABASE_URL")
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{ TranslateError: true})
+	DB, err = gorm.Open(postgres.New(postgres.Config{
+    DSN:                  dsn,
+    PreferSimpleProtocol: true,
+}), &gorm.Config{TranslateError: true})
 
 	//setup for categories
 
 	if err != nil {
-        panic("failed to connect database")
-    }
+		panic("failed to connect database")
+	}
 	Setup(DB)
 	MDB, err = MongoSetup(mongodb_url)
 	fmt.Println(mongodb_url)
 	if err != nil {
 		fmt.Println(err)
-        panic("failed to connect to mongo database")
-    }
+		panic("failed to connect to mongo database")
+	}
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: redisAddr,
+		Addr:     redisAddr,
 		Password: "",
-		DB: 0,
+		DB:       0,
 		Protocol: 2,
 	})
 
 }
-
