@@ -4,6 +4,8 @@ import (
 	// "context"
 	"context"
 	"log"
+	"os"
+
 	// "os"
 
 	// "time"
@@ -51,7 +53,7 @@ func main() {
 	app.Use(logger.New())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:4200",
+		AllowOrigins:     os.Getenv("ALLOWED_ORIGINS"),
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders:     "Content-Type, Authorization, enctype",
 		AllowCredentials: true,
